@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   Users,
@@ -7,7 +7,9 @@ import {
   FileText,
   UserCog,
   Settings,
+  LogOut,
 } from 'lucide-react'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const nav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,6 +25,14 @@ const bottom = [
 ]
 
 export default function Sidebar() {
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <aside className="w-56 flex-shrink-0 bg-navy flex flex-col h-full">
       {/* Wordmark */}
@@ -68,6 +78,13 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-3 py-2 rounded text-sm font-body text-white/55 hover:text-white/85 hover:bg-white/5 transition-colors duration-150"
+        >
+          <LogOut size={16} strokeWidth={1.75} />
+          Sign Out
+        </button>
       </div>
     </aside>
   )

@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Shell from './components/Shell.jsx'
+import ProtectedRoute from './components/ProtectedRoute.jsx'
+import Login from './pages/Login.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Clients from './pages/Clients.jsx'
 import ClientDetail from './pages/ClientDetail.jsx'
@@ -13,12 +15,23 @@ import Team from './pages/Team.jsx'
 import MemberDetail from './pages/MemberDetail.jsx'
 import Settings from './pages/Settings.jsx'
 import { AppProvider } from './context/AppContext.jsx'
+import { AuthProvider } from './context/AuthContext.jsx'
 
 export default function App() {
   return (
-    <AppProvider>
+    <AuthProvider>
       <Routes>
-        <Route path="/" element={<Shell />}>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AppProvider>
+                <Shell />
+              </AppProvider>
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="clients" element={<Clients />} />
@@ -34,6 +47,6 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
-    </AppProvider>
+    </AuthProvider>
   )
 }
