@@ -108,29 +108,33 @@ function fromSupplier(data) {
 
 function toInvoice(row) {
   return {
-    id:        row.id,
-    invoiceNo: row.invoice_no,
-    clientId:  row.client_id,
-    orderId:   row.order_id,
-    status:    row.status,
-    issueDate: row.issue_date,
-    dueDate:   row.due_date,
-    currency:  row.currency ?? 'USD',
-    lineItems: row.line_items ?? [],
-    notes:     row.notes ?? '',
+    id:             row.id,
+    invoiceNo:      row.invoice_no,
+    clientId:       row.client_id,
+    orderId:        row.order_id,
+    status:         row.status,
+    issueDate:      row.issue_date,
+    dueDate:        row.due_date,
+    currency:       row.currency ?? 'USD',
+    lineItems:      row.line_items ?? [],
+    notes:          row.notes ?? '',
+    pdfUrl:         row.pdf_url ?? null,
+    paymentLinkUrl: row.payment_link_url ?? null,
   }
 }
 function fromInvoice(data) {
   return {
-    invoice_no: data.invoiceNo,
-    client_id:  data.clientId,
-    order_id:   data.orderId ?? null,
-    status:     data.status,
-    issue_date: data.issueDate,
-    due_date:   data.dueDate,
-    currency:   data.currency ?? 'USD',
-    line_items: data.lineItems ?? [],
-    notes:      data.notes ?? '',
+    invoice_no:        data.invoiceNo,
+    client_id:         data.clientId,
+    order_id:          data.orderId ?? null,
+    status:            data.status,
+    issue_date:        data.issueDate,
+    due_date:          data.dueDate,
+    currency:          data.currency ?? 'USD',
+    line_items:        data.lineItems ?? [],
+    notes:             data.notes ?? '',
+    pdf_url:           data.pdfUrl ?? null,
+    payment_link_url:  data.paymentLinkUrl ?? null,
   }
 }
 

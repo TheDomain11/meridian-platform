@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, FileText, Pencil, RefreshCw } from 'lucide-react'
+import { ArrowLeft, FileText, Pencil, RefreshCw, FileDown, Send, Link2, Copy, Check } from 'lucide-react'
 import { useInvoices, useClients, useOrders } from '../context/AppContext'
 import InvoiceStatusBadge from '../components/invoicing/InvoiceStatusBadge.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
+import { formatInvoiceNumber } from '../lib/pdf/invoiceNumber.js'
+import { uploadInvoicePdf, blobToBase64 } from '../lib/invoiceStorage.js'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -18,21 +20,16 @@ function fmt(n) {
   return `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function PlaceholderSection({ title }) {
-  return (
-    <div className="bg-white border border-navy/8 p-5">
-      <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">{title}</p>
-      <p className="text-sm text-slate/35 font-body">No data yet.</p>
-    </div>
-  )
-}
-
 export default function InvoiceDetail() {
   const { id } = useParams()
   const { invoices, updateInvoice } = useInvoices()
   const { clients } = useClients()
   const { orders } = useOrders()
   const [editOpen, setEditOpen] = useState(false)
+
+  const [busy, setBusy] = useState(null) // 'generate' | 'send' | 'link' | null
+  const [feedback, setFeedback] = useState(null) // { type: 'error'|'success', text }
+  const [copied, setCopied] = useState(false)
 
   const invoice = invoices.find(inv => inv.id === id)
   const client  = invoice ? clients.find(c => c.id === invoice.clientId) : null
@@ -50,6 +47,7 @@ export default function InvoiceDetail() {
   }
 
   const total = calcTotal(invoice.lineItems)
+  const displayNo = formatInvoiceNumber(invoice)
 
   function nextInvoiceNo() {
     const max = invoices.reduce((m, inv) => {
@@ -61,6 +59,101 @@ export default function InvoiceDetail() {
 
   const canMarkSent = invoice.status === 'Draft'
   const canMarkPaid = invoice.status === 'Sent' || invoice.status === 'Overdue'
+
+  async function handleGenerate() {
+    setBusy('generate')
+    setFeedback(null)
+    try {
+      const { generateInvoicePdf } = await import('../lib/pdf/generateInvoicePdf.js')
+      const { blob, filename } = generateInvoicePdf({ invoice, client, order })
+      const pdfUrl = await uploadInvoicePdf(blob, filename)
+      await updateInvoice(invoice.id, { ...invoice, pdfUrl })
+      setFeedback({ type: 'success', text: 'PDF generated and saved.' })
+    } catch (err) {
+      setFeedback({ type: 'error', text: `Could not generate PDF: ${err.message}` })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function handleSend() {
+    if (!client?.email) {
+      setFeedback({ type: 'error', text: 'This client has no email address on file.' })
+      return
+    }
+    setBusy('send')
+    setFeedback(null)
+    try {
+      const { generateInvoicePdf } = await import('../lib/pdf/generateInvoicePdf.js')
+      const { blob, filename } = generateInvoicePdf({ invoice, client, order })
+      const pdfUrl = await uploadInvoicePdf(blob, filename)
+      const pdfBase64 = await blobToBase64(blob)
+
+      const res = await fetch('/.netlify/functions/send-invoice-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: client.email,
+          clientName: client.contact || client.company,
+          displayNo,
+          total: fmt(total).replace('$', ''),
+          currency: invoice.currency || 'USD',
+          dueDate: formatDate(invoice.dueDate),
+          pdfBase64,
+          pdfFilename: filename,
+          paymentLink: invoice.paymentLinkUrl || null,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error?.message || err.error || 'Email could not be sent.')
+      }
+
+      await updateInvoice(invoice.id, { ...invoice, pdfUrl, status: invoice.status === 'Draft' ? 'Sent' : invoice.status })
+      setFeedback({ type: 'success', text: `Invoice emailed to ${client.email}.` })
+    } catch (err) {
+      setFeedback({ type: 'error', text: `Could not send invoice: ${err.message}` })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function handleCreatePaymentLink() {
+    setBusy('link')
+    setFeedback(null)
+    try {
+      const res = await fetch('/.netlify/functions/create-payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          displayNo,
+          amount: total,
+          currency: invoice.currency || 'usd',
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error?.message || err.error || 'Payment link could not be created.')
+      }
+
+      const { url } = await res.json()
+      await updateInvoice(invoice.id, { ...invoice, paymentLinkUrl: url })
+      setFeedback({ type: 'success', text: 'Stripe payment link created.' })
+    } catch (err) {
+      setFeedback({ type: 'error', text: `Could not create payment link: ${err.message}` })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  function copyPaymentLink() {
+    if (!invoice.paymentLinkUrl) return
+    navigator.clipboard.writeText(invoice.paymentLinkUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <div className="p-8">
@@ -122,7 +215,7 @@ export default function InvoiceDetail() {
 
           {canMarkSent && (
             <button
-              onClick={() => updateInvoice(invoice.id, { status: 'Sent' })}
+              onClick={() => updateInvoice(invoice.id, { ...invoice, status: 'Sent' })}
               className="px-4 py-2 border border-teal/40 text-sm font-body text-teal hover:bg-teal/5 transition-colors duration-150"
             >
               Mark as Sent
@@ -131,7 +224,7 @@ export default function InvoiceDetail() {
 
           {canMarkPaid && (
             <button
-              onClick={() => updateInvoice(invoice.id, { status: 'Paid' })}
+              onClick={() => updateInvoice(invoice.id, { ...invoice, status: 'Paid' })}
               className="px-4 py-2 bg-navy text-white text-sm font-body font-medium hover:bg-slate transition-colors duration-150"
             >
               Mark as Paid
@@ -146,6 +239,74 @@ export default function InvoiceDetail() {
             Edit
           </button>
         </div>
+      </div>
+
+      {/* PDF / Email / Payment actions */}
+      <div className="bg-white border border-navy/8 mb-4 px-5 py-4 flex flex-wrap items-center gap-3">
+        <button
+          onClick={handleGenerate}
+          disabled={busy !== null}
+          className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150 disabled:opacity-50"
+        >
+          <FileDown size={14} strokeWidth={1.75} />
+          {busy === 'generate' ? 'Generating…' : 'Generate Invoice'}
+        </button>
+
+        <button
+          onClick={handleSend}
+          disabled={busy !== null}
+          className="flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-body font-medium hover:bg-slate transition-colors duration-150 disabled:opacity-50"
+        >
+          <Send size={13} strokeWidth={1.75} />
+          {busy === 'send' ? 'Sending…' : 'Send Invoice'}
+        </button>
+
+        <button
+          onClick={handleCreatePaymentLink}
+          disabled={busy !== null}
+          className="flex items-center gap-2 px-4 py-2 border border-gold/50 text-sm font-body text-gold hover:bg-gold/5 transition-colors duration-150 disabled:opacity-50"
+        >
+          <Link2 size={13} strokeWidth={1.75} />
+          {busy === 'link' ? 'Creating…' : 'Create Payment Link'}
+        </button>
+
+        {invoice.pdfUrl && (
+          <a
+            href={invoice.pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-body text-teal hover:text-navy transition-colors duration-150 ml-auto"
+          >
+            View PDF →
+          </a>
+        )}
+
+        {feedback && (
+          <p className={`w-full text-sm font-body ${feedback.type === 'error' ? 'text-red-700' : 'text-teal'}`}>
+            {feedback.text}
+          </p>
+        )}
+
+        {invoice.paymentLinkUrl && (
+          <div className="w-full flex items-center gap-2 bg-cream/60 border border-navy/8 px-3 py-2">
+            <Link2 size={13} className="text-gold flex-shrink-0" />
+            <a
+              href={invoice.paymentLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-body text-slate truncate flex-1 hover:text-navy transition-colors duration-150"
+            >
+              {invoice.paymentLinkUrl}
+            </a>
+            <button
+              onClick={copyPaymentLink}
+              className="text-slate/50 hover:text-navy transition-colors duration-150 flex-shrink-0"
+              title="Copy link"
+            >
+              {copied ? <Check size={13} className="text-teal" /> : <Copy size={13} />}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Invoice body */}
@@ -216,10 +377,28 @@ export default function InvoiceDetail() {
       {/* Placeholder sections */}
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2">
-          <PlaceholderSection title="Activity Log" />
+          <div className="bg-white border border-navy/8 p-5">
+            <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">Activity Log</p>
+            <p className="text-sm text-slate/35 font-body">No data yet.</p>
+          </div>
         </div>
         <div className="col-span-1">
-          <PlaceholderSection title="Documents" />
+          <div className="bg-white border border-navy/8 p-5">
+            <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">Documents</p>
+            {invoice.pdfUrl ? (
+              <a
+                href={invoice.pdfUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm font-body text-teal hover:text-navy transition-colors duration-150"
+              >
+                <FileText size={14} strokeWidth={1.75} />
+                {displayNo}.pdf
+              </a>
+            ) : (
+              <p className="text-sm text-slate/35 font-body">No data yet.</p>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown, Download } from 'lucide-react'
 import { useInvoices, useClients, useOrders } from '../context/AppContext'
 import PageHeader from '../components/PageHeader.jsx'
 import InvoiceStatusBadge from '../components/invoicing/InvoiceStatusBadge.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
+import { buildInvoicesCsv, downloadCsv } from '../lib/csvExport.js'
 
 const STATUS_TABS = ['All', 'Draft', 'Sent', 'Paid', 'Overdue']
 
@@ -41,6 +42,8 @@ export default function Invoicing() {
   const [statusTab, setStatusTab] = useState('All')
   const [sort, setSort] = useState({ key: 'issueDate', dir: 'desc' })
   const [panelOpen, setPanelOpen] = useState(false)
+  const [exportFrom, setExportFrom] = useState('')
+  const [exportTo, setExportTo] = useState('')
 
   const clientMap = useMemo(() => Object.fromEntries(clients.map(c => [c.id, c.company])), [clients])
   const orderMap  = useMemo(() => Object.fromEntries(orders.map(o => [o.id, o.orderId])),   [orders])
@@ -80,6 +83,12 @@ export default function Invoicing() {
     }),
     [filtered, sort]
   )
+
+  function handleExport() {
+    const csv = buildInvoicesCsv(invoices, clientMap, orderMap, { from: exportFrom, to: exportTo })
+    const range = exportFrom || exportTo ? `_${exportFrom || 'start'}_to_${exportTo || 'now'}` : ''
+    downloadCsv(`meridian-invoices${range}.csv`, csv)
+  }
 
   function nextInvoiceNo() {
     const max = invoices.reduce((m, inv) => {
@@ -137,6 +146,31 @@ export default function Invoicing() {
               {tab}
             </button>
           ))}
+        </div>
+
+        <div className="flex items-center gap-2 ml-auto">
+          <input
+            type="date"
+            value={exportFrom}
+            onChange={e => setExportFrom(e.target.value)}
+            className="px-2 py-1.5 text-xs font-body bg-white border border-navy/10 text-navy focus:outline-none focus:border-navy/30"
+            aria-label="Export from date"
+          />
+          <span className="text-xs text-slate/40 font-body">to</span>
+          <input
+            type="date"
+            value={exportTo}
+            onChange={e => setExportTo(e.target.value)}
+            className="px-2 py-1.5 text-xs font-body bg-white border border-navy/10 text-navy focus:outline-none focus:border-navy/30"
+            aria-label="Export to date"
+          />
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-navy/15 text-xs font-body font-medium text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
+          >
+            <Download size={13} strokeWidth={1.75} />
+            Export
+          </button>
         </div>
       </div>
 
