@@ -22,7 +22,7 @@ function fmt(n) {
 
 export default function InvoiceDetail() {
   const { id } = useParams()
-  const { invoices, updateInvoice } = useInvoices()
+  const { invoices, updateInvoice, patchInvoiceLocal } = useInvoices()
   const { clients } = useClients()
   const { orders } = useOrders()
   const [editOpen, setEditOpen] = useState(false)
@@ -66,8 +66,9 @@ export default function InvoiceDetail() {
     try {
       const { generateInvoicePdf } = await import('../lib/pdf/generateInvoicePdf.js')
       const { blob, filename } = generateInvoicePdf({ invoice, client, order })
-      const pdfUrl = await uploadInvoicePdf(blob, filename)
-      await updateInvoice(invoice.id, { ...invoice, pdfUrl })
+      const pdfBase64 = await blobToBase64(blob)
+      const pdfUrl = await uploadInvoicePdf(pdfBase64, filename, invoice.id)
+      patchInvoiceLocal(invoice.id, { pdfUrl })
       setFeedback({ type: 'success', text: 'PDF generated and saved.' })
     } catch (err) {
       setFeedback({ type: 'error', text: `Could not generate PDF: ${err.message}` })
@@ -86,13 +87,16 @@ export default function InvoiceDetail() {
     try {
       const { generateInvoicePdf } = await import('../lib/pdf/generateInvoicePdf.js')
       const { blob, filename } = generateInvoicePdf({ invoice, client, order })
-      const pdfUrl = await uploadInvoicePdf(blob, filename)
       const pdfBase64 = await blobToBase64(blob)
+      const pdfUrl = await uploadInvoicePdf(pdfBase64, filename, invoice.id)
+
+      const newStatus = invoice.status === 'Draft' ? 'Sent' : invoice.status
 
       const res = await fetch('/.netlify/functions/send-invoice-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          invoiceId: invoice.id,
           to: client.email,
           clientName: client.contact || client.company,
           displayNo,
@@ -102,6 +106,7 @@ export default function InvoiceDetail() {
           pdfBase64,
           pdfFilename: filename,
           paymentLink: invoice.paymentLinkUrl || null,
+          status: newStatus,
         }),
       })
 
@@ -110,7 +115,7 @@ export default function InvoiceDetail() {
         throw new Error(err.error?.message || err.error || 'Email could not be sent.')
       }
 
-      await updateInvoice(invoice.id, { ...invoice, pdfUrl, status: invoice.status === 'Draft' ? 'Sent' : invoice.status })
+      patchInvoiceLocal(invoice.id, { pdfUrl, status: newStatus })
       setFeedback({ type: 'success', text: `Invoice emailed to ${client.email}.` })
     } catch (err) {
       setFeedback({ type: 'error', text: `Could not send invoice: ${err.message}` })
@@ -127,6 +132,7 @@ export default function InvoiceDetail() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          invoiceId: invoice.id,
           displayNo,
           amount: total,
           currency: invoice.currency || 'usd',
@@ -139,7 +145,7 @@ export default function InvoiceDetail() {
       }
 
       const { url } = await res.json()
-      await updateInvoice(invoice.id, { ...invoice, paymentLinkUrl: url })
+      patchInvoiceLocal(invoice.id, { paymentLinkUrl: url })
       setFeedback({ type: 'success', text: 'Stripe payment link created.' })
     } catch (err) {
       setFeedback({ type: 'error', text: `Could not create payment link: ${err.message}` })

@@ -289,6 +289,11 @@ export function AppProvider({ children }) {
     if (error) throw error
     setInvoices(prev => prev.map(i => (i.id === id ? toInvoice(row) : i)))
   }
+  // Syncs local state after a write already persisted server-side (e.g. via a
+  // service-role Netlify function) — does not touch Supabase, so it has no RLS dependency.
+  function patchInvoiceLocal(id, fields) {
+    setInvoices(prev => prev.map(i => (i.id === id ? { ...i, ...fields } : i)))
+  }
 
   // --- Team ---
   async function addMember(data) {
@@ -318,7 +323,7 @@ export function AppProvider({ children }) {
         clients,   addClient,   updateClient,
         orders,    addOrder,    updateOrder,
         suppliers, addSupplier, updateSupplier,
-        invoices,  addInvoice,  updateInvoice,
+        invoices,  addInvoice,  updateInvoice, patchInvoiceLocal,
         team,      addMember,   updateMember,
       }}
     >
@@ -344,8 +349,8 @@ export const useSuppliers = () => {
   return { suppliers, addSupplier, updateSupplier }
 }
 export const useInvoices = () => {
-  const { invoices, addInvoice, updateInvoice } = useContext(AppContext)
-  return { invoices, addInvoice, updateInvoice }
+  const { invoices, addInvoice, updateInvoice, patchInvoiceLocal } = useContext(AppContext)
+  return { invoices, addInvoice, updateInvoice, patchInvoiceLocal }
 }
 export const useTeam = () => {
   const { team, addMember, updateMember } = useContext(AppContext)

@@ -1,3 +1,5 @@
+import { getSupabaseAdmin } from './_supabaseAdmin.js'
+
 // Drop the real key into the Netlify site's environment variables as STRIPE_SECRET_KEY.
 // See README section "Resend / Stripe setup" for exact steps.
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'PLACEHOLDER_STRIPE_SECRET_KEY'
@@ -14,10 +16,10 @@ export const handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) }
   }
 
-  const { displayNo, amount, currency = 'usd' } = payload
+  const { invoiceId, displayNo, amount, currency = 'usd' } = payload
 
-  if (!amount || amount <= 0) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid amount' }) }
+  if (!invoiceId || !amount || amount <= 0) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields: invoiceId, amount' }) }
   }
 
   const params = new URLSearchParams()
@@ -40,6 +42,14 @@ export const handler = async (event) => {
     if (!res.ok) {
       return { statusCode: res.status, body: JSON.stringify({ error: result }) }
     }
+
+    const supabaseAdmin = getSupabaseAdmin()
+    const { error: updateError } = await supabaseAdmin
+      .from('invoices')
+      .update({ payment_link_url: result.url })
+      .eq('id', invoiceId)
+    if (updateError) throw updateError
+
     return { statusCode: 200, body: JSON.stringify({ url: result.url, id: result.id }) }
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) }

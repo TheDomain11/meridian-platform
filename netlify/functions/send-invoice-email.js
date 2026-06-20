@@ -1,3 +1,5 @@
+import { getSupabaseAdmin } from './_supabaseAdmin.js'
+
 // Drop the real key into the Netlify site's environment variables as RESEND_API_KEY.
 // See README section "Resend / Stripe setup" for exact steps.
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 'PLACEHOLDER_RESEND_API_KEY'
@@ -15,10 +17,10 @@ export const handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON body' }) }
   }
 
-  const { to, clientName, displayNo, total, currency, dueDate, pdfBase64, pdfFilename, paymentLink } = payload
+  const { invoiceId, to, clientName, displayNo, total, currency, dueDate, pdfBase64, pdfFilename, paymentLink, status } = payload
 
-  if (!to || !pdfBase64 || !pdfFilename) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields: to, pdfBase64, pdfFilename' }) }
+  if (!invoiceId || !to || !pdfBase64 || !pdfFilename) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields: invoiceId, to, pdfBase64, pdfFilename' }) }
   }
 
   const paymentBlock = paymentLink
@@ -64,6 +66,13 @@ export const handler = async (event) => {
     if (!res.ok) {
       return { statusCode: res.status, body: JSON.stringify({ error: result }) }
     }
+
+    if (status) {
+      const supabaseAdmin = getSupabaseAdmin()
+      const { error: updateError } = await supabaseAdmin.from('invoices').update({ status }).eq('id', invoiceId)
+      if (updateError) throw updateError
+    }
+
     return { statusCode: 200, body: JSON.stringify({ success: true, id: result.id }) }
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) }
