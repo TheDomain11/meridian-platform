@@ -1,8 +1,8 @@
-import { getSupabaseAdmin } from './_supabaseAdmin.js'
+const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
 const BUCKET = 'invoices'
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' }
   }

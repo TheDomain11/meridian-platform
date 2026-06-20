@@ -1,10 +1,10 @@
-import { getSupabaseAdmin } from './_supabaseAdmin.js'
+const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
 // Drop the real key into the Netlify site's environment variables as STRIPE_SECRET_KEY.
 // See README section "Resend / Stripe setup" for exact steps.
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || 'PLACEHOLDER_STRIPE_SECRET_KEY'
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' }
   }
