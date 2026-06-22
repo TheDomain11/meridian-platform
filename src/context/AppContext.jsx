@@ -106,6 +106,16 @@ function fromSupplier(data) {
   }
 }
 
+// Some rows have line_items written with "unit" (and a precomputed "total") rather than
+// the "unitPrice" key the app's own invoice form writes — normalize both shapes here.
+function normalizeLineItems(items) {
+  return (items ?? []).map(item => ({
+    description: item.description ?? '',
+    qty:         item.qty ?? 0,
+    unitPrice:   item.unitPrice ?? item.unit ?? 0,
+  }))
+}
+
 function toInvoice(row) {
   return {
     id:             row.id,
@@ -116,7 +126,7 @@ function toInvoice(row) {
     issueDate:      row.issue_date,
     dueDate:        row.due_date,
     currency:       row.currency ?? 'USD',
-    lineItems:      row.line_items ?? [],
+    lineItems:      normalizeLineItems(row.line_items),
     notes:          row.notes ?? '',
     pdfUrl:         row.pdf_url ?? null,
     paymentLinkUrl: row.payment_link_url ?? null,
