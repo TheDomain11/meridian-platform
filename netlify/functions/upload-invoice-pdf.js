@@ -37,6 +37,9 @@ exports.handler = async (event) => {
 
     return { statusCode: 200, body: JSON.stringify({ pdfUrl }) }
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) }
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: err.message, code: err.code, details: err.details, hint: err.hint }),
+    }
   }
 }
