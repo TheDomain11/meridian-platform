@@ -138,6 +138,13 @@ async function sendNotificationEmail({ approvalId, summary, draftResponse, fromE
 }
 
 exports.handler = async (event) => {
+  if (event.httpMethod === 'GET') {
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ status: 'ok' }),
+    }
+  }
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' }
   }
