@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar.jsx'
+import AIAssistant from './ai/AIAssistant.jsx'
 import { useAppContext } from '../context/AppContext.jsx'
 
 export default function Shell() {
@@ -34,6 +35,7 @@ export default function Shell() {
       <main className="flex-1 min-w-0 overflow-y-auto bg-cream">
         <Outlet />
       </main>
+      <AIAssistant />
     </div>
   )
 }
