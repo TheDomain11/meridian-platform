@@ -10,6 +10,7 @@ const MODULE_BY_SEGMENT = {
   invoicing: 'Invoicing',
   team: 'Team',
   settings: 'Settings',
+  approvals: 'Approvals',
 }
 
 function calcInvoiceTotal(lineItems = []) {

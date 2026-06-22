@@ -8,6 +8,7 @@ import {
   UserCog,
   Settings,
   LogOut,
+  Inbox,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -18,6 +19,7 @@ const nav = [
   { to: '/suppliers', label: 'Suppliers', icon: Building2 },
   { to: '/invoicing', label: 'Invoicing', icon: FileText },
   { to: '/team', label: 'Team', icon: UserCog },
+  { to: '/approvals', label: 'Approvals', icon: Inbox },
 ]
 
 const bottom = [

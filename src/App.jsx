@@ -14,6 +14,7 @@ import InvoiceDetail from './pages/InvoiceDetail.jsx'
 import Team from './pages/Team.jsx'
 import MemberDetail from './pages/MemberDetail.jsx'
 import Settings from './pages/Settings.jsx'
+import Approvals from './pages/Approvals.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 
@@ -45,6 +46,8 @@ export default function App() {
           <Route path="team" element={<Team />} />
           <Route path="team/:id" element={<MemberDetail />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="approvals" element={<Approvals />} />
+          <Route path="approvals/:id" element={<Approvals />} />
         </Route>
       </Routes>
     </AuthProvider>
