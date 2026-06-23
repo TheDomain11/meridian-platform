@@ -138,6 +138,8 @@ async function sendNotificationEmail({ approvalId, summary, draftResponse, fromE
 }
 
 exports.handler = async (event) => {
+  console.log('Resend inbound payload:', JSON.stringify(event.body ?? null).slice(0, 2000))
+
   if (event.httpMethod === 'GET') {
     return {
       statusCode: 200,
