@@ -161,6 +161,17 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Could not determine sender email from payload' }) }
   }
 
+  // Loop prevention — ignore emails from internal addresses or Resend
+  const internalDomains = ['meridianinternational.io', 'resend.com', 'amazonses.com']
+  const senderDomain = fromEmail.split('@')[1]?.toLowerCase() || ''
+  if (internalDomains.some(d => senderDomain.includes(d))) {
+    console.log('Loop prevention: ignoring internal email from', fromEmail)
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ status: 'ignored', reason: 'internal sender' }),
+    }
+  }
+
   try {
     const supabaseAdmin = getSupabaseAdmin()
 
