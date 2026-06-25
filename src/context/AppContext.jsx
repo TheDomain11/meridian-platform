@@ -224,7 +224,9 @@ export function AppProvider({ children }) {
       .select()
       .single()
     if (error) throw error
-    setClients(prev => [...prev, toClient(row)])
+    const client = toClient(row)
+    setClients(prev => [...prev, client])
+    return client
   }
   async function updateClient(id, data) {
     const { data: row, error } = await supabase
@@ -234,7 +236,9 @@ export function AppProvider({ children }) {
       .select()
       .single()
     if (error) throw error
-    setClients(prev => prev.map(c => (c.id === id ? toClient(row) : c)))
+    const client = toClient(row)
+    setClients(prev => prev.map(c => (c.id === id ? client : c)))
+    return client
   }
 
   // --- Orders ---
@@ -245,7 +249,9 @@ export function AppProvider({ children }) {
       .select()
       .single()
     if (error) throw error
-    setOrders(prev => [toOrder(row), ...prev])
+    const order = toOrder(row)
+    setOrders(prev => [order, ...prev])
+    return order
   }
   async function updateOrder(id, data) {
     const { data: row, error } = await supabase
@@ -255,7 +261,9 @@ export function AppProvider({ children }) {
       .select()
       .single()
     if (error) throw error
-    setOrders(prev => prev.map(o => (o.id === id ? toOrder(row) : o)))
+    const order = toOrder(row)
+    setOrders(prev => prev.map(o => (o.id === id ? order : o)))
+    return order
   }
 
   // --- Suppliers ---
@@ -266,7 +274,9 @@ export function AppProvider({ children }) {
       .select()
       .single()
     if (error) throw error
-    setSuppliers(prev => [...prev, toSupplier(row)])
+    const supplier = toSupplier(row)
+    setSuppliers(prev => [...prev, supplier])
+    return supplier
   }
   async function updateSupplier(id, data) {
     const { data: row, error } = await supabase
@@ -276,7 +286,9 @@ export function AppProvider({ children }) {
       .select()
       .single()
     if (error) throw error
-    setSuppliers(prev => prev.map(s => (s.id === id ? toSupplier(row) : s)))
+    const supplier = toSupplier(row)
+    setSuppliers(prev => prev.map(s => (s.id === id ? supplier : s)))
+    return supplier
   }
 
   // --- Invoices ---

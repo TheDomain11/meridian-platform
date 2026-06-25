@@ -61,7 +61,7 @@ export default function AIAssistant() {
       {/* Floating button */}
       <button
         onClick={() => setOpen(true)}
-        className={`fixed bottom-6 right-6 z-40 w-12 h-12 bg-navy text-cream flex items-center justify-center transition-opacity duration-200 ${
+        className={`fixed bottom-20 right-6 z-40 w-12 h-12 bg-navy text-cream flex items-center justify-center transition-opacity duration-200 ${
           open ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
         aria-label="Open Meridian AI"

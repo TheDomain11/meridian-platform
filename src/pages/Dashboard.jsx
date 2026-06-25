@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import PageHeader from '../components/PageHeader.jsx'
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx'
+import DashboardInsight from '../components/ai/DashboardInsight.jsx'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -48,6 +49,8 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle="Overview of Meridian operations"
       />
+
+      <DashboardInsight clients={clients} orders={orders} invoices={invoices} />
 
       {/* Metric tiles */}
       <div className="grid grid-cols-4 gap-4 mb-8">

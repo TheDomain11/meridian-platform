@@ -1,10 +1,11 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || 'PLACEHOLDER_ANTHROPIC_API_KEY'
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 'PLACEHOLDER_RESEND_API_KEY'
-const MODEL = 'claude-sonnet-4-6'
 const GEORGE_EMAIL = 'george@meridianinternational.io'
 const APPROVALS_BASE_URL = 'https://platform.meridianinternational.io/approvals'
+// ai-service.js is the only place in the platform that calls the AI provider directly —
+// this function calls it over HTTP rather than hitting Claude itself.
+const SITE_URL = process.env.URL || process.env.DEPLOY_URL || 'http://localhost:8888'
 
 // Resend's inbound webhook nests the message under `data`, with `from` as either a
 // "Name <email>" string or a { name, email } object — this normalizes both shapes,
@@ -37,66 +38,35 @@ function parseInboundPayload(body) {
   }
 }
 
-function stripMarkdownFences(text) {
-  return text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
-}
-
 async function classifyAndDraft({ fromName, fromEmail, subject, bodyText }) {
-  const systemPrompt = `You are an inbound email triage assistant for Meridian International, a B2B China sourcing and procurement agency based in Hong Kong, run by founder George. Meridian sources factories, negotiates pricing, and manages quality control and logistics for B2B clients on a commission basis — it does not hold inventory itself.
-
-You will be given the text of an inbound email. Do all of the following:
-1. Classify the intent as exactly one of: NEW_ENQUIRY, RFQ, STATUS_UPDATE, GENERAL
-2. Extract the sender's name, company (if mentioned or reasonably inferable), product interest, and budget (if mentioned)
-3. Write a one-line summary of the enquiry
-4. Draft a professional reply in George's voice — first person ("I"), specific and concrete (reference exactly what they asked about), warm but business-like, signed "George" with no placeholder brackets left for the user to fill in
-
-Respond with ONLY a JSON object — no markdown code fences, no commentary before or after — in exactly this shape:
-{
-  "intent": "NEW_ENQUIRY" | "RFQ" | "STATUS_UPDATE" | "GENERAL",
-  "clientName": string,
-  "company": string or null,
-  "productInterest": string or null,
-  "budget": string or null,
-  "summary": string,
-  "draftResponse": string
-}`
-
-  const userMessage = `From: ${fromName} <${fromEmail}>\nSubject: ${subject}\n\n${bodyText}`
-
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    }),
-  })
-
-  const result = await res.json()
-  if (!res.ok) {
-    throw new Error(`Claude API error: ${result.error?.message || JSON.stringify(result)}`)
+  const fallback = {
+    intent: 'GENERAL',
+    clientName: fromName,
+    company: null,
+    productInterest: null,
+    budget: null,
+    summary: subject || 'Inbound email could not be auto-summarized.',
+    draftResponse: '',
   }
 
-  const raw = result.content?.[0]?.text ?? ''
   try {
-    return JSON.parse(stripMarkdownFences(raw))
-  } catch {
-    // Degrade gracefully rather than lose the enquiry — the raw email is still saved either way.
-    return {
-      intent: 'GENERAL',
-      clientName: fromName,
-      company: null,
-      productInterest: null,
-      budget: null,
-      summary: subject || 'Inbound email could not be auto-summarized.',
-      draftResponse: '',
+    const res = await fetch(`${SITE_URL}/.netlify/functions/ai-service`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        feature: 'email_process',
+        payload: { fromName, fromEmail, subject, bodyText },
+      }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.error) {
+      throw new Error(json.error || `ai-service responded with status ${res.status}`)
     }
+    return json.result ?? fallback
+  } catch (err) {
+    // Degrade gracefully rather than lose the enquiry — the raw email is still saved either way.
+    console.error('[inbound-email] ai-service call failed:', err)
+    return fallback
   }
 }
 

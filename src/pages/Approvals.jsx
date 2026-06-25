@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
-import { Pencil, Send, Check } from 'lucide-react'
+import { Pencil, Send, Check, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader.jsx'
 
 const INTENT_LABEL = {
@@ -24,6 +24,7 @@ export default function Approvals() {
   const [editText, setEditText] = useState('')
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const highlightRef = useRef(null)
 
   useEffect(() => {
@@ -78,6 +79,28 @@ export default function Approvals() {
     setEditingId(approval.id)
     setEditText(approval.draftResponse || '')
     setActionError(null)
+  }
+
+  async function handleDelete(approvalId) {
+    setBusyId(approvalId)
+    setActionError(null)
+    try {
+      const res = await fetch('/.netlify/functions/delete-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: approvalId }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error?.message || err.error || 'Could not delete this approval.')
+      }
+      setApprovals(prev => prev.filter(a => a.id !== approvalId))
+      setConfirmDeleteId(null)
+    } catch (err) {
+      setActionError(err.message)
+    } finally {
+      setBusyId(null)
+    }
   }
 
   return (
@@ -138,46 +161,74 @@ export default function Approvals() {
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                {isEditing ? (
-                  <>
-                    <button
-                      onClick={() => handleApprove(approval.id, editText)}
-                      disabled={isBusy}
-                      className="flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-body font-medium hover:bg-slate transition-colors duration-150 disabled:opacity-50"
-                    >
-                      <Send size={13} strokeWidth={1.75} />
-                      {isBusy ? 'Sending…' : 'Send'}
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      disabled={isBusy}
-                      className="px-4 py-2 text-sm font-body text-slate hover:text-navy transition-colors duration-150"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => handleApprove(approval.id)}
-                      disabled={isBusy}
-                      className="flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-body font-medium hover:bg-slate transition-colors duration-150 disabled:opacity-50"
-                    >
-                      <Check size={13} strokeWidth={1.75} />
-                      {isBusy ? 'Sending…' : 'Approve'}
-                    </button>
-                    <button
-                      onClick={() => startEdit(approval)}
-                      disabled={isBusy}
-                      className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150 disabled:opacity-50"
-                    >
-                      <Pencil size={13} strokeWidth={1.75} />
-                      Edit &amp; Approve
-                    </button>
-                  </>
-                )}
-              </div>
+              {confirmDeleteId === approval.id ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-body text-navy">Are you sure?</span>
+                  <button
+                    onClick={() => handleDelete(approval.id)}
+                    disabled={isBusy}
+                    className="px-4 py-2 bg-red-600 text-white text-sm font-body font-medium hover:bg-red-700 transition-colors duration-150 disabled:opacity-50"
+                  >
+                    {isBusy ? 'Deleting…' : 'Confirm'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(null)}
+                    disabled={isBusy}
+                    className="px-4 py-2 text-sm font-body text-slate hover:text-navy transition-colors duration-150"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={() => handleApprove(approval.id, editText)}
+                        disabled={isBusy}
+                        className="flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-body font-medium hover:bg-slate transition-colors duration-150 disabled:opacity-50"
+                      >
+                        <Send size={13} strokeWidth={1.75} />
+                        {isBusy ? 'Sending…' : 'Send'}
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        disabled={isBusy}
+                        className="px-4 py-2 text-sm font-body text-slate hover:text-navy transition-colors duration-150"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleApprove(approval.id)}
+                        disabled={isBusy}
+                        className="flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-body font-medium hover:bg-slate transition-colors duration-150 disabled:opacity-50"
+                      >
+                        <Check size={13} strokeWidth={1.75} />
+                        {isBusy ? 'Sending…' : 'Approve'}
+                      </button>
+                      <button
+                        onClick={() => startEdit(approval)}
+                        disabled={isBusy}
+                        className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150 disabled:opacity-50"
+                      >
+                        <Pencil size={13} strokeWidth={1.75} />
+                        Edit &amp; Approve
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => setConfirmDeleteId(approval.id)}
+                    disabled={isBusy}
+                    className="flex items-center gap-2 px-4 py-2 border border-red-600 text-sm font-body text-red-600 hover:bg-red-600 hover:text-white transition-colors duration-150 disabled:opacity-50 ml-auto"
+                  >
+                    <Trash2 size={13} strokeWidth={1.75} />
+                    Delete
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
