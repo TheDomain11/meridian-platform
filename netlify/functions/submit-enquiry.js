@@ -1,7 +1,7 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY || 'PLACEHOLDER_RESEND_API_KEY'
-const GEORGE_EMAIL = 'george@meridianinternational.io'
+const GEORGE_EMAIL = 'admin@meridianinternational.io'
 const FROM_ADDRESS = 'Meridian International <enquiries@meridianinternational.io>'
 
 const corsHeaders = {
