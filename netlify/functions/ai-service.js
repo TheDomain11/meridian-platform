@@ -1,6 +1,7 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || 'PLACEHOLDER_ANTHROPIC_API_KEY'
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+if (!ANTHROPIC_API_KEY) throw new Error('Missing required environment variable: ANTHROPIC_API_KEY')
 const AI_PROVIDER = process.env.AI_PROVIDER || 'claude'
 const MODEL = 'claude-sonnet-4-6'
 

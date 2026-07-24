@@ -1,5 +1,6 @@
 // Drop the real key into the Netlify site's environment variables as ANTHROPIC_API_KEY.
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || 'PLACEHOLDER_ANTHROPIC_API_KEY'
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+if (!ANTHROPIC_API_KEY) throw new Error('Missing required environment variable: ANTHROPIC_API_KEY')
 const MODEL = 'claude-sonnet-4-6'
 
 function describeEntity(entity) {

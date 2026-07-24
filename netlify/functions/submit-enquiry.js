@@ -1,8 +1,13 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY || 'PLACEHOLDER_RESEND_API_KEY'
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+if (!RESEND_API_KEY) throw new Error('Missing required environment variable: RESEND_API_KEY')
+
 const GEORGE_EMAIL = 'admin@meridianinternational.io'
 const FROM_ADDRESS = 'Meridian International <enquiries@meridianinternational.io>'
+// ai-service.js is the only place in the platform that calls the AI provider directly —
+// this function calls it over HTTP rather than hitting Claude itself.
+const SITE_URL = process.env.URL || process.env.DEPLOY_URL || 'http://localhost:8888'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': 'https://meridianinternational.io',
@@ -26,6 +31,33 @@ async function sendResendEmail({ to, subject, text }) {
   }
 }
 
+// Mirrors inbound-email.js's classifyAndDraft — reuses ai-service.js's email_process
+// feature so web-form enquiries get the same Claude-drafted summary/reply as inbound
+// emails, rather than duplicating that prompt logic here.
+async function classifyAndDraft({ fromName, fromEmail, subject, bodyText }) {
+  const fallback = { summary: subject, draftResponse: '' }
+
+  try {
+    const res = await fetch(`${SITE_URL}/.netlify/functions/ai-service`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        feature: 'email_process',
+        payload: { fromName, fromEmail, subject, bodyText },
+      }),
+    })
+    const json = await res.json()
+    if (!res.ok || json.error) {
+      throw new Error(json.error || `ai-service responded with status ${res.status}`)
+    }
+    return json.result ?? fallback
+  } catch (err) {
+    // Degrade gracefully rather than lose the enquiry — the raw enquiry row is already saved.
+    console.error('[submit-enquiry] ai-service call failed:', err)
+    return fallback
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: corsHeaders, body: '' }
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: corsHeaders, body: 'Method Not Allowed' }
@@ -46,6 +78,9 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers: corsHeaders, body: JSON.stringify({ error: 'Missing required fields' }) }
   }
 
+  const subject = `New enquiry — ${data.name}${data.company ? ' / ' + data.company : ''}`
+  const bodyText = `Name: ${data.name}\nCompany: ${data.company || '—'}\nEmail: ${data.email}\nPhone: ${data.phone || '—'}\nType: ${data.enquiry_type || '—'}\nProduct/category: ${data.product_category || '—'}\nDestination market: ${data.destination_market || '—'}\nApprox order value: ${data.order_value || '—'}\nTimeline: ${data.timeline || '—'}\nExisting suppliers: ${data.existing_suppliers || '—'}\n\nMessage:\n${data.message}`
+
   try {
     const supabaseAdmin = getSupabaseAdmin()
 
@@ -65,13 +100,67 @@ exports.handler = async (event) => {
 
     if (error) throw error
 
+    // Route the enquiry through the same client + email_approvals pattern inbound-email.js
+    // uses, so web-form enquiries show up on the Approvals page like inbound emails do.
+    // Best-effort: the enquiry row above is already saved, so a failure here shouldn't
+    // fail the visitor's submission — it just means this one won't surface on Approvals.
+    try {
+      const parsed = await classifyAndDraft({ fromName: data.name, fromEmail: data.email, subject, bodyText })
+
+      const { data: existingClient, error: lookupError } = await supabaseAdmin
+        .from('clients')
+        .select('id, company')
+        .eq('email', data.email)
+        .maybeSingle()
+      if (lookupError) throw lookupError
+
+      let clientId = existingClient?.id ?? null
+
+      if (!existingClient) {
+        const { data: newClient, error: insertClientError } = await supabaseAdmin
+          .from('clients')
+          .insert({
+            company: data.company || '',
+            contact: data.name,
+            email: data.email,
+            phone: data.phone || '',
+            country: '',
+            status: 'Pipeline',
+            source: 'web_enquiry',
+            notes: '',
+            open_orders: 0,
+          })
+          .select()
+          .single()
+        if (insertClientError) throw insertClientError
+        clientId = newClient.id
+      }
+
+      const { error: approvalError } = await supabaseAdmin
+        .from('email_approvals')
+        .insert({
+          from_email: data.email,
+          from_name: data.name,
+          subject,
+          body_raw: bodyText,
+          intent: 'NEW_ENQUIRY',
+          client_id: clientId,
+          summary: parsed.summary,
+          draft_response: parsed.draftResponse,
+          status: 'pending',
+        })
+      if (approvalError) throw approvalError
+    } catch (approvalErr) {
+      console.error('[submit-enquiry] approvals routing failed:', approvalErr)
+    }
+
     // The enquiry is already saved at this point — a Resend hiccup shouldn't surface as a
     // failure to the visitor, so log it rather than let it fail the response.
     try {
       await sendResendEmail({
         to: GEORGE_EMAIL,
-        subject: `New enquiry — ${data.name}${data.company ? ' / ' + data.company : ''}`,
-        text: `Name: ${data.name}\nCompany: ${data.company || '—'}\nEmail: ${data.email}\nPhone: ${data.phone || '—'}\nType: ${data.enquiry_type || '—'}\nProduct/category: ${data.product_category || '—'}\nDestination market: ${data.destination_market || '—'}\nApprox order value: ${data.order_value || '—'}\nTimeline: ${data.timeline || '—'}\nExisting suppliers: ${data.existing_suppliers || '—'}\n\nMessage:\n${data.message}`,
+        subject,
+        text: bodyText,
       })
 
       await sendResendEmail({

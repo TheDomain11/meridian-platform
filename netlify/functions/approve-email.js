@@ -1,6 +1,7 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY || 'PLACEHOLDER_RESEND_API_KEY'
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+if (!RESEND_API_KEY) throw new Error('Missing required environment variable: RESEND_API_KEY')
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {

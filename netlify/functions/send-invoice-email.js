@@ -2,7 +2,8 @@ const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 
 // Drop the real key into the Netlify site's environment variables as RESEND_API_KEY.
 // See README section "Resend / Stripe setup" for exact steps.
-const RESEND_API_KEY = process.env.RESEND_API_KEY || 'PLACEHOLDER_RESEND_API_KEY'
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+if (!RESEND_API_KEY) throw new Error('Missing required environment variable: RESEND_API_KEY')
 const FROM_ADDRESS = 'George <george@meridianinternational.io>'
 
 exports.handler = async (event) => {

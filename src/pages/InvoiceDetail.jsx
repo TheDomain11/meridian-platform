@@ -6,7 +6,6 @@ import InvoiceStatusBadge from '../components/invoicing/InvoiceStatusBadge.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
 import { formatInvoiceNumber } from '../lib/pdf/invoiceNumber.js'
 import { uploadInvoicePdf, blobToBase64 } from '../lib/invoiceStorage.js'
-import { supabase } from '../lib/supabase.js'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -65,9 +64,6 @@ export default function InvoiceDetail() {
     setBusy('generate')
     setFeedback(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      console.log('[Generate Invoice] current Supabase session:', session)
-
       const { generateInvoicePdf } = await import('../lib/pdf/generateInvoicePdf.js')
       const { blob, filename } = generateInvoicePdf({ invoice, client, order })
       const pdfBase64 = await blobToBase64(blob)
