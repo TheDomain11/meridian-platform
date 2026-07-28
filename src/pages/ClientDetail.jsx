@@ -4,6 +4,7 @@ import { ArrowLeft, Building2, Mail, Phone, MapPin, Tag, Pencil } from 'lucide-r
 import { useClients } from '../context/AppContext'
 import StatusBadge from '../components/clients/StatusBadge.jsx'
 import AddClientPanel from '../components/clients/AddClientPanel.jsx'
+import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -77,13 +78,16 @@ export default function ClientDetail() {
             <p className="text-sm font-body text-slate/60 mt-0.5">{client.contact} · {client.country}</p>
           </div>
         </div>
-        <button
-          onClick={() => setEditOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
-        >
-          <Pencil size={13} strokeWidth={1.75} />
-          Edit
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
+          >
+            <Pencil size={13} strokeWidth={1.75} />
+            Edit
+          </button>
+          <DeleteRecordControl entity="clients" id={client.id} name={client.company} redirectTo="/clients" />
+        </div>
       </div>
 
       {/* Body */}

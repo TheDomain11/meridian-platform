@@ -70,7 +70,8 @@ exports.handler = async (event) => {
 
     if (status) {
       const supabaseAdmin = getSupabaseAdmin()
-      const { error: updateError } = await supabaseAdmin.from('invoices').update({ status }).eq('id', invoiceId)
+      // Defensive: never touch a trashed invoice, even though the UI can't reach one.
+      const { error: updateError } = await supabaseAdmin.from('invoices').update({ status }).eq('id', invoiceId).is('deleted_at', null)
       if (updateError) throw updateError
     }
 

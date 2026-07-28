@@ -4,6 +4,7 @@ import { ArrowLeft, FileText, Pencil, RefreshCw, FileDown, Send, Link2, Copy, Ch
 import { useInvoices, useClients, useOrders } from '../context/AppContext'
 import InvoiceStatusBadge from '../components/invoicing/InvoiceStatusBadge.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
+import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
 import { formatInvoiceNumber } from '../lib/pdf/invoiceNumber.js'
 import { uploadInvoicePdf, blobToBase64 } from '../lib/invoiceStorage.js'
 
@@ -244,6 +245,7 @@ export default function InvoiceDetail() {
             <Pencil size={13} strokeWidth={1.75} />
             Edit
           </button>
+          <DeleteRecordControl entity="invoices" id={invoice.id} name={invoice.invoiceNo} redirectTo="/invoicing" />
         </div>
       </div>
 

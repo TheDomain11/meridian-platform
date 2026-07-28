@@ -107,10 +107,13 @@ exports.handler = async (event) => {
     try {
       const parsed = await classifyAndDraft({ fromName: data.name, fromEmail: data.email, subject, bodyText })
 
+      // Ignore soft-deleted clients — a trashed client must not be resurrected by a new
+      // web enquiry; a fresh client row is created instead.
       const { data: existingClient, error: lookupError } = await supabaseAdmin
         .from('clients')
         .select('id, company')
         .eq('email', data.email)
+        .is('deleted_at', null)
         .maybeSingle()
       if (lookupError) throw lookupError
 

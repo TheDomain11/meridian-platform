@@ -4,6 +4,7 @@ import { ArrowLeft, Factory, MessageCircle, Phone, Mail, MapPin, Tag, Clock, Cre
 import { useSuppliers } from '../context/AppContext'
 import SupplierStatusBadge from '../components/suppliers/SupplierStatusBadge.jsx'
 import AddSupplierPanel from '../components/suppliers/AddSupplierPanel.jsx'
+import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -88,13 +89,16 @@ export default function SupplierDetail() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setEditOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
-        >
-          <Pencil size={13} strokeWidth={1.75} />
-          Edit
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
+          >
+            <Pencil size={13} strokeWidth={1.75} />
+            Edit
+          </button>
+          <DeleteRecordControl entity="suppliers" id={supplier.id} name={supplier.name} redirectTo="/suppliers" />
+        </div>
       </div>
 
       {/* Details grid */}

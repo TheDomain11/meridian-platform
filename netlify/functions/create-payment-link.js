@@ -45,10 +45,12 @@ exports.handler = async (event) => {
     }
 
     const supabaseAdmin = getSupabaseAdmin()
+    // Defensive: never touch a trashed invoice, even though the UI can't reach one.
     const { error: updateError } = await supabaseAdmin
       .from('invoices')
       .update({ payment_link_url: result.url })
       .eq('id', invoiceId)
+      .is('deleted_at', null)
     if (updateError) throw updateError
 
     return { statusCode: 200, body: JSON.stringify({ url: result.url, id: result.id }) }

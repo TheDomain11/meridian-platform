@@ -9,6 +9,7 @@ import {
   Settings,
   LogOut,
   Inbox,
+  Trash2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -23,6 +24,7 @@ const nav = [
 ]
 
 const bottom = [
+  { to: '/trash', label: 'Trash', icon: Trash2 },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 

@@ -5,6 +5,7 @@ import { useOrders, useClients } from '../context/AppContext'
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx'
 import StatusTracker from '../components/orders/StatusTracker.jsx'
 import NewOrderPanel from '../components/orders/NewOrderPanel.jsx'
+import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -104,13 +105,16 @@ export default function OrderDetail() {
             </div>
           </div>
         </div>
-        <button
-          onClick={() => setEditOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
-        >
-          <Pencil size={13} strokeWidth={1.75} />
-          Edit
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
+          >
+            <Pencil size={13} strokeWidth={1.75} />
+            Edit
+          </button>
+          <DeleteRecordControl entity="orders" id={order.id} name={order.orderId} redirectTo="/orders" />
+        </div>
       </div>
 
       {/* Status tracker */}

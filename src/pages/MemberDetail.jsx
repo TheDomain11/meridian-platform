@@ -4,6 +4,7 @@ import { ArrowLeft, User, Mail, Phone, MessageCircle, Building2, ShieldCheck, Pe
 import { useTeam } from '../context/AppContext'
 import { ROLES } from '../lib/teamData'
 import AddMemberPanel from '../components/team/AddMemberPanel.jsx'
+import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -100,13 +101,16 @@ export default function MemberDetail() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => setEditOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
-        >
-          <Pencil size={13} strokeWidth={1.75} />
-          Edit
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 border border-navy/15 text-sm font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150"
+          >
+            <Pencil size={13} strokeWidth={1.75} />
+            Edit
+          </button>
+          <DeleteRecordControl entity="team" id={member.id} name={member.name} redirectTo="/team" />
+        </div>
       </div>
 
       {/* Details grid */}

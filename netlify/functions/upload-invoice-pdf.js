@@ -32,7 +32,8 @@ exports.handler = async (event) => {
     const { data: urlData } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(filename)
     const pdfUrl = urlData.publicUrl
 
-    const { error: updateError } = await supabaseAdmin.from('invoices').update({ pdf_url: pdfUrl }).eq('id', invoiceId)
+    // Defensive: never touch a trashed invoice, even though the UI can't reach one.
+    const { error: updateError } = await supabaseAdmin.from('invoices').update({ pdf_url: pdfUrl }).eq('id', invoiceId).is('deleted_at', null)
     if (updateError) throw updateError
 
     return { statusCode: 200, body: JSON.stringify({ pdfUrl }) }

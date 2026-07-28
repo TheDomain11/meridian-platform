@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from './AuthContext.jsx'
 
 const AppContext = createContext(null)
 
@@ -148,6 +149,26 @@ function fromInvoice(data) {
   }
 }
 
+// enquiries are read-only in the app (written by the public form via a Netlify function).
+// They surface only in the Trash view, so we need a display transform but no fromEnquiry.
+function toEnquiry(row) {
+  return {
+    id:                row.id,
+    name:              row.name,
+    company:           row.company ?? '',
+    email:             row.email,
+    phone:             row.phone ?? '',
+    enquiryType:       row.enquiry_type ?? '',
+    productCategory:   row.product_category ?? '',
+    destinationMarket: row.destination_market ?? '',
+    orderValue:        row.order_value ?? '',
+    timeline:          row.timeline ?? '',
+    existingSuppliers: row.existing_suppliers ?? '',
+    message:           row.message ?? '',
+    createdAt:         row.created_at ?? null,
+  }
+}
+
 function toMember(row) {
   return {
     id:         row.id,
@@ -178,7 +199,11 @@ function fromMember(data) {
 
 // ── Provider ─────────────────────────────────────────────────────────────────
 
+const TRASH_EMPTY = { clients: [], orders: [], suppliers: [], invoices: [], team: [], enquiries: [] }
+
 export function AppProvider({ children }) {
+  const { user } = useAuth()
+
   const [clients,   setClients]   = useState([])
   const [orders,    setOrders]    = useState([])
   const [suppliers, setSuppliers] = useState([])
@@ -187,15 +212,22 @@ export function AppProvider({ children }) {
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
 
+  const [trash,        setTrash]        = useState(TRASH_EMPTY)
+  const [trashLoading, setTrashLoading] = useState(false)
+  const [trashError,   setTrashError]   = useState(null)
+
   useEffect(() => {
     async function fetchAll() {
       try {
+        // `.is('deleted_at', null)` on every live fetch is the single chokepoint that keeps
+        // soft-deleted rows out of the entire normal UI — all list/detail/dashboard/AI views
+        // read from these arrays and never query Supabase directly.
         const [c, o, s, i, t] = await Promise.all([
-          supabase.from('clients').select('*').order('company'),
-          supabase.from('orders').select('*').order('created_at', { ascending: false }),
-          supabase.from('suppliers').select('*').order('name'),
-          supabase.from('invoices').select('*').order('issue_date', { ascending: false }),
-          supabase.from('team').select('*').order('name'),
+          supabase.from('clients').select('*').is('deleted_at', null).order('company'),
+          supabase.from('orders').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+          supabase.from('suppliers').select('*').is('deleted_at', null).order('name'),
+          supabase.from('invoices').select('*').is('deleted_at', null).order('issue_date', { ascending: false }),
+          supabase.from('team').select('*').is('deleted_at', null).order('name'),
         ])
         if (c.error) throw c.error
         if (o.error) throw o.error
@@ -338,6 +370,99 @@ export function AppProvider({ children }) {
     setTeam(prev => prev.map(m => (m.id === id ? toMember(row) : m)))
   }
 
+  // --- Soft delete / trash ---
+  // Maps an entity/table name to its live-array setter and row transform. Enquiries have
+  // no live array in the app (they're never fetched into normal views), so setter is null.
+  const ENTITY_CONFIG = {
+    clients:   { setter: setClients,   transform: toClient },
+    orders:    { setter: setOrders,    transform: toOrder },
+    suppliers: { setter: setSuppliers, transform: toSupplier },
+    invoices:  { setter: setInvoices,  transform: toInvoice },
+    team:      { setter: setTeam,      transform: toMember },
+    enquiries: { setter: null,         transform: toEnquiry },
+  }
+  const TRASH_TABLES = Object.keys(ENTITY_CONFIG)
+
+  // Soft-delete a live record: stamp deleted_at/deleted_by and drop it from its live array.
+  // Only the 5 core tables expose this (enquiries has no user-facing trash action).
+  async function softDelete(entity, id) {
+    const { error } = await supabase
+      .from(entity)
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id ?? null })
+      .eq('id', id)
+    if (error) throw error
+    ENTITY_CONFIG[entity]?.setter?.(prev => prev.filter(x => x.id !== id))
+  }
+
+  // Loads every trashed row across all in-scope tables. Lazy — called when /trash mounts.
+  async function loadTrash() {
+    setTrashLoading(true)
+    setTrashError(null)
+    try {
+      const results = await Promise.all(
+        TRASH_TABLES.map(t =>
+          supabase.from(t).select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false })
+        )
+      )
+      const next = {}
+      TRASH_TABLES.forEach((t, idx) => {
+        const { data, error: err } = results[idx]
+        if (err) throw err
+        const transform = ENTITY_CONFIG[t].transform
+        next[t] = data.map(row => ({ ...transform(row), deletedAt: row.deleted_at, deletedBy: row.deleted_by }))
+      })
+      setTrash(next)
+    } catch (err) {
+      setTrashError(err.message)
+    } finally {
+      setTrashLoading(false)
+    }
+  }
+
+  // Restore a trashed record. Core tables restore via a direct authenticated UPDATE;
+  // enquiries route through the service-role function (no assumed UPDATE policy on that table).
+  async function restore(entity, id) {
+    const record = trash[entity]?.find(r => r.id === id)
+
+    if (entity === 'enquiries') {
+      const res = await fetch('/.netlify/functions/restore-record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: entity, id }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || json.error) throw new Error(json.error || 'Could not restore this record.')
+    } else {
+      const { error: err } = await supabase
+        .from(entity)
+        .update({ deleted_at: null, deleted_by: null })
+        .eq('id', id)
+      if (err) throw err
+    }
+
+    setTrash(prev => ({ ...prev, [entity]: prev[entity].filter(r => r.id !== id) }))
+
+    // Put it back into the live array (list pages sort client-side, so order here is moot).
+    const setter = ENTITY_CONFIG[entity]?.setter
+    if (setter && record) {
+      const { deletedAt, deletedBy, ...live } = record
+      setter(prev => [...prev, live])
+    }
+  }
+
+  // Permanent, irreversible delete — always via the service-role function, never a direct
+  // frontend DELETE. Surfaces the function's foreign-key message on a 409.
+  async function permanentDelete(entity, id) {
+    const res = await fetch('/.netlify/functions/purge-record', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: entity, id }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok || json.error) throw new Error(json.error || 'Could not permanently delete this record.')
+    setTrash(prev => ({ ...prev, [entity]: prev[entity].filter(r => r.id !== id) }))
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -347,6 +472,7 @@ export function AppProvider({ children }) {
         suppliers, addSupplier, updateSupplier,
         invoices,  addInvoice,  updateInvoice, patchInvoiceLocal,
         team,      addMember,   updateMember,
+        trash, trashLoading, trashError, loadTrash, softDelete, restore, permanentDelete,
       }}
     >
       {children}
@@ -377,4 +503,8 @@ export const useInvoices = () => {
 export const useTeam = () => {
   const { team, addMember, updateMember } = useContext(AppContext)
   return { team, addMember, updateMember }
+}
+export const useTrash = () => {
+  const { trash, trashLoading, trashError, loadTrash, softDelete, restore, permanentDelete } = useContext(AppContext)
+  return { trash, trashLoading, trashError, loadTrash, softDelete, restore, permanentDelete }
 }
