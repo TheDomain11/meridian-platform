@@ -3,7 +3,7 @@ const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 if (!RESEND_API_KEY) throw new Error('Missing required environment variable: RESEND_API_KEY')
 
-const GEORGE_EMAIL = 'admin@meridianinternational.io'
+const GEORGE_EMAIL = 'george@meridianinternational.io'
 const FROM_ADDRESS = 'Meridian International <enquiries@meridianinternational.io>'
 // ai-service.js is the only place in the platform that calls the AI provider directly —
 // this function calls it over HTTP rather than hitting Claude itself.
