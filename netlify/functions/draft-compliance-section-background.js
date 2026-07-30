@@ -1,42 +1,51 @@
 // ═══════════════════════════════════════════════════════════════
-// Meridian International — Automatic Compliance Drafting
-// netlify/functions/draft-compliance-section.js
+// Meridian International — Automatic Compliance Drafting (Background)
+// netlify/functions/draft-compliance-section-background.js
 //
-// v2 — parallelized. The original version asked one API call to
-// research four separate regulatory areas (SARS, NRCS, ICASA, HS
-// classification) sequentially in a single request. That easily
-// exceeds Netlify's synchronous function timeout once each area
-// needs its own web_search round trip. This version fires four
-// independent, smaller requests concurrently — total wall-clock
-// time becomes the duration of the SLOWEST single area, not the
-// sum of all four.
+// v3 — Background Function. Netlify recognizes the "-background"
+// filename suffix and grants up to 15 minutes of execution, but
+// the tradeoff is it does NOT return the result to the original
+// caller — it returns 202 Accepted immediately, and the real
+// output must be written somewhere the client can retrieve
+// afterward (Supabase, here). Pair this with
+// get-compliance-draft-status.js, which the UI polls.
 //
-// DESIGN PRINCIPLE UNCHANGED: every claim must carry a citation
-// object or be marked unverified. That validation logic is
-// untouched — only the request shape changed.
+// REQUIRED: a Supabase table, e.g.:
+//   create table compliance_drafts (
+//     engagement_ref text primary key,
+//     client_id text,
+//     status text not null default 'pending',  -- pending | complete | failed
+//     compliance jsonb,
+//     errors jsonb,
+//     created_at timestamptz default now(),
+//     completed_at timestamptz
+//   );
+//
+// Citation validation logic is UNCHANGED from the parallelized
+// version — only the execution/response model changed.
 // ═══════════════════════════════════════════════════════════════
 
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 const ALLOWED_SOURCES = [
-  'sars.gov.za',
-  'nrcs.org.za',
-  'icasa.org.za',
-  'gov.za',
-  'wcotradetools.org',
-  'itac.org.za',
+  'sars.gov.za', 'nrcs.org.za', 'icasa.org.za', 'gov.za', 'wcotradetools.org', 'itac.org.za',
 ];
 
 const BASE_RULES = `HARD RULES — these are not style preferences, they are validation requirements:
 
-1. Every factual claim MUST be grounded in a web_search result from THIS session. You may not answer from training knowledge, even if confident. Regulations change; your training data has a cutoff.
+1. Every factual claim MUST be grounded in a web_search result from THIS session. You may not answer from training knowledge, even if confident.
 2. Every claim must be paired with a citation object: { source_name, url, date_accessed }. A claim without one will be rejected.
 3. Prefer sources from this allow-list: ${ALLOWED_SOURCES.join(', ')}.
 4. If you cannot find a clear, current answer, output status: "unverified" with a one-line note on what you searched. An honest gap is acceptable. A fabricated answer is not.
-5. Include the date you accessed the source — from the search result or execution time, not a guess.
-6. Do not round up confidence. If a source is dated or secondary, say so in the claim text.
-7. Output ONLY the JSON structure specified. No prose, no markdown fences, no explanation outside the JSON.`;
+5. Include the date you accessed the source.
+6. Do not round up confidence — flag dated or secondary sources in the claim text.
+7. Output ONLY the JSON structure specified. No prose, no markdown fences.`;
 
-// Each sub-drafter is scoped narrowly — one regulatory area, one
-// smaller round trip, so it finishes well inside the timeout.
 const SUB_DRAFTERS = {
   sars: {
     system: `You are drafting the SARS section of a Meridian International compliance note.\n\n${BASE_RULES}\n\nOUTPUT SHAPE:\n{ "importer_registration": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"}, "invoice_requirements": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"} }`,
@@ -110,34 +119,29 @@ async function draftOneSection(key, drafter, payload) {
   }
 }
 
+// Background Functions in Netlify: the handler's return value is
+// ignored by the original caller (who already got a 202). We write
+// the real result to Supabase instead.
 exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
+  const { clientId, productSpec, destinationMarket, engagementRef } = JSON.parse(event.body);
 
   try {
-    const { clientId, productSpec, destinationMarket, engagementRef } = JSON.parse(event.body);
-
-    if (!productSpec || !destinationMarket) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'productSpec and destinationMarket are required' }) };
-    }
-
     const payload = { productSpec, destinationMarket, today: new Date().toISOString().split('T')[0] };
 
-    // Fire all four sub-drafts concurrently — this is the fix.
     const results = await Promise.all(
       Object.entries(SUB_DRAFTERS).map(([key, drafter]) => draftOneSection(key, drafter, payload))
     );
 
-    const errors = results.filter(r => r.error);
-    if (errors.length > 0) {
-      return {
-        statusCode: 502,
-        body: JSON.stringify({
-          error: 'One or more compliance sections failed to draft. Nothing was saved.',
-          sectionErrors: errors,
-        }),
-      };
+    const sectionErrors = results.filter(r => r.error);
+    if (sectionErrors.length > 0) {
+      await supabase.from('compliance_drafts').upsert({
+        engagement_ref: engagementRef,
+        client_id: clientId,
+        status: 'failed',
+        errors: sectionErrors,
+        completed_at: new Date().toISOString(),
+      });
+      return;
     }
 
     const draft = {};
@@ -148,27 +152,32 @@ exports.handler = async (event) => {
     }
 
     if (validationErrors.length > 0) {
-      return {
-        statusCode: 422,
-        body: JSON.stringify({
-          error: 'Draft failed citation validation and was NOT saved. Fix and retry.',
-          validationErrors,
-          draft,
-        }),
-      };
+      await supabase.from('compliance_drafts').upsert({
+        engagement_ref: engagementRef,
+        client_id: clientId,
+        status: 'failed',
+        errors: validationErrors,
+        compliance: draft, // kept for debugging, not for use
+        completed_at: new Date().toISOString(),
+      });
+      return;
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        clientId,
-        engagementRef,
-        draftedAt: new Date().toISOString(),
-        compliance: draft,
-      }),
-    };
+    await supabase.from('compliance_drafts').upsert({
+      engagement_ref: engagementRef,
+      client_id: clientId,
+      status: 'complete',
+      compliance: draft,
+      completed_at: new Date().toISOString(),
+    });
 
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    await supabase.from('compliance_drafts').upsert({
+      engagement_ref: engagementRef,
+      client_id: clientId,
+      status: 'failed',
+      errors: [{ message: err.message }],
+      completed_at: new Date().toISOString(),
+    });
   }
 };
