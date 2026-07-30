@@ -94,7 +94,7 @@ async function draftOneSection(key, drafter, payload) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-5',
-      max_tokens: 1500,
+      max_tokens: 4000,
       system: drafter.system,
       messages: [{ role: 'user', content: drafter.prompt(payload) }],
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
