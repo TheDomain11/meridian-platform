@@ -126,7 +126,7 @@ Search for current, primary-source answers to each required field. Today's date 
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-5',
         max_tokens: 4000,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
@@ -135,6 +135,19 @@ Search for current, primary-source answers to each required field. Today's date 
     });
 
     const data = await response.json();
+
+    // Surface real API errors immediately instead of falling through to a
+    // confusing "invalid JSON" message with an empty body.
+    if (!response.ok || data.type === 'error') {
+      return {
+        statusCode: 502,
+        body: JSON.stringify({
+          error: 'Anthropic API returned an error before drafting could occur.',
+          apiStatus: response.status,
+          apiError: data.error || data,
+        }),
+      };
+    }
 
     // Extract the final text block (after any web_search tool_use/tool_result blocks)
     const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text);
