@@ -39,7 +39,7 @@ const ALLOWED_SOURCES = [
 const BASE_RULES = `HARD RULES — these are not style preferences, they are validation requirements:
 
 1. Every factual claim MUST be grounded in a web_search result from THIS session. You may not answer from training knowledge, even if confident.
-2. Every claim must be paired with a citation object: { source_name, url, date_accessed }. A claim without one will be rejected.
+2. Every claim must be paired with EXACTLY ONE citation object: { source_name, url, date_accessed } — not an array. If you found multiple supporting sources, choose the single most authoritative primary source and cite only that one. A claim without a citation, or with an array instead of one object, will be rejected.
 3. Prefer sources from this allow-list: ${ALLOWED_SOURCES.join(', ')}.
 4. If you cannot find a clear, current answer, output status: "unverified" with a one-line note on what you searched. An honest gap is acceptable. A fabricated answer is not.
 5. Include the date you accessed the source.
@@ -70,6 +70,15 @@ function validateSection(sectionName, section) {
   if (!section) { errors.push(`${sectionName}: no data returned`); return errors; }
   for (const [fieldName, field] of Object.entries(section)) {
     if (!field) { errors.push(`${sectionName}.${fieldName}: missing`); continue; }
+
+    // Defensive normalization: the model occasionally returns multiple
+    // supporting sources as an array instead of one object. Rather than
+    // reject well-sourced research over shape alone, take the first
+    // (most authoritative, per prompt instruction) citation.
+    if (Array.isArray(field.citation)) {
+      field.citation = field.citation[0] || null;
+    }
+
     if (field.status === 'verified') {
       if (!field.citation || !field.citation.url || !field.citation.date_accessed) {
         errors.push(`${sectionName}.${fieldName}: marked verified but missing complete citation — rejecting.`);
