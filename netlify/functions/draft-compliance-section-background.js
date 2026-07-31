@@ -21,8 +21,13 @@
 //     completed_at timestamptz
 //   );
 //
-// Citation validation logic is UNCHANGED from the parallelized
-// version — only the execution/response model changed.
+// Status values written to compliance_drafts:
+//   pending  — row not yet written / job in flight
+//   complete — all four sections present and validated
+//   partial  — a subset was drafted (via `sections`) and validated,
+//              but not every section is present yet
+//   failed   — an API error, parse failure, or citation validation
+//              rejection occurred; see the errors column
 // ═══════════════════════════════════════════════════════════════
 
 const { createClient } = require('@supabase/supabase-js');
@@ -44,24 +49,29 @@ const BASE_RULES = `HARD RULES — these are not style preferences, they are val
 4. If you cannot find a clear, current answer, output status: "unverified" with a one-line note on what you searched. An honest gap is acceptable. A fabricated answer is not.
 5. Include the date you accessed the source.
 6. Do not round up confidence — flag dated or secondary sources in the claim text.
-7. Output ONLY the JSON structure specified. No prose, no markdown fences.`;
+7. Output ONLY the JSON structure specified. No prose, no markdown fences.
+8. Keep each claim to 3-4 sentences. State the finding and its basis — do not build an extended case, cite multiple precedents, or restate the reasoning. Concision is a hard requirement, not a style preference: overlong claims get truncated mid-JSON and the entire section is discarded.`;
 
 const SUB_DRAFTERS = {
   sars: {
     system: `You are drafting the SARS section of a Meridian International compliance note.\n\n${BASE_RULES}\n\nOUTPUT SHAPE:\n{ "importer_registration": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"}, "invoice_requirements": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"} }`,
     prompt: (p) => `Research SARS importer registration requirements (Section 59A) and commercial invoice requirements (SC-CF-30) for a business importing ${p.productSpec} into ${p.destinationMarket}. Today is ${p.today}.`,
+    maxTokens: 4000,
   },
   nrcs: {
     system: `You are drafting the NRCS section of a Meridian International compliance note.\n\n${BASE_RULES}\n\nOUTPUT SHAPE:\n{ "applicability": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"}, "processing_time": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"} }`,
     prompt: (p) => `Research whether NRCS compulsory specifications apply to ${p.productSpec} imported into ${p.destinationMarket}, which VC number if so, and current LOA processing time. Today is ${p.today}.`,
+    maxTokens: 4000,
   },
   icasa: {
     system: `You are drafting the ICASA section of a Meridian International compliance note.\n\n${BASE_RULES}\n\nOUTPUT SHAPE:\n{ "applicability": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"} }`,
     prompt: (p) => `Research whether ICASA type approval applies to ${p.productSpec} imported into ${p.destinationMarket}. Today is ${p.today}.`,
+    maxTokens: 4000,
   },
   hs_classification: {
     system: `You are drafting the HS classification section of a Meridian International compliance note.\n\n${BASE_RULES}\n\nOUTPUT SHAPE:\n{ "code": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"}, "duty_rate": {"claim":"...","citation":{...}|null,"status":"verified"|"unverified"} }`,
     prompt: (p) => `Research the correct HS classification code and applicable SACU duty rate for ${p.productSpec} imported into ${p.destinationMarket}. Today is ${p.today}.`,
+    maxTokens: 6000, // HS classification reasoning tends to run longer than other sections
   },
 };
 
@@ -103,7 +113,7 @@ async function draftOneSection(key, drafter, payload) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-5',
-      max_tokens: 4000,
+      max_tokens: drafter.maxTokens || 4000,
       system: drafter.system,
       messages: [{ role: 'user', content: drafter.prompt(payload) }],
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -128,27 +138,92 @@ async function draftOneSection(key, drafter, payload) {
   }
 }
 
+/**
+ * Single write path for this function. Every status write goes through here.
+ *
+ * Critically: it never clears the `compliance` column. Error paths that don't
+ * pass new compliance data will preserve whatever was already stored, so a
+ * failed partial re-run cannot wipe sections that previously validated. This
+ * is enforced here rather than remembered at each call site.
+ */
+async function writeStatus(engagementRef, clientId, fields) {
+  let compliance = fields.compliance;
+
+  if (compliance === undefined) {
+    const { data: existing, error: readErr } = await supabase
+      .from('compliance_drafts')
+      .select('compliance')
+      .eq('engagement_ref', engagementRef)
+      .maybeSingle();
+    if (readErr) {
+      console.error(`writeStatus: failed reading existing compliance for ${engagementRef}`, readErr);
+    }
+    compliance = existing?.compliance ?? null;
+  }
+
+  const { error: writeErr } = await supabase.from('compliance_drafts').upsert({
+    engagement_ref: engagementRef,
+    client_id: clientId,
+    completed_at: new Date().toISOString(),
+    ...fields,
+    compliance,
+  });
+
+  // A failed write means the research was paid for but the result is lost and
+  // the UI will poll 'pending' indefinitely. Surface it in the function log.
+  if (writeErr) {
+    console.error(`writeStatus: FAILED to persist status for ${engagementRef}`, writeErr);
+  }
+}
+
 // Background Functions in Netlify: the handler's return value is
 // ignored by the original caller (who already got a 202). We write
 // the real result to Supabase instead.
 exports.handler = async (event) => {
-  const { clientId, productSpec, destinationMarket, engagementRef } = JSON.parse(event.body);
+  let clientId, productSpec, destinationMarket, engagementRef, sections;
+
+  // Parse defensively: if this throws, we have no engagement_ref to write a
+  // failure row against, so the job would die invisibly and the UI would poll
+  // forever. Fail loudly to the function log instead.
+  try {
+    ({ clientId, productSpec, destinationMarket, engagementRef, sections } = JSON.parse(event.body));
+  } catch (parseErr) {
+    console.error('draft-compliance-section-background: malformed request body', parseErr);
+    return;
+  }
+
+  if (!engagementRef) {
+    console.error('draft-compliance-section-background: engagementRef is required — cannot record status without it');
+    return;
+  }
 
   try {
     const payload = { productSpec, destinationMarket, today: new Date().toISOString().split('T')[0] };
 
+    // Optional `sections` array lets you draft a subset — e.g. ["hs_classification"].
+    // Debugging one broken section shouldn't cost four API calls plus four web
+    // searches. Omit the parameter entirely for a full production draft.
+    const selected = Array.isArray(sections) && sections.length > 0
+      ? Object.entries(SUB_DRAFTERS).filter(([key]) => sections.includes(key))
+      : Object.entries(SUB_DRAFTERS);
+
+    if (selected.length === 0) {
+      await writeStatus(engagementRef, clientId, {
+        status: 'failed',
+        errors: [{ message: `No valid sections matched: ${JSON.stringify(sections)}. Valid keys: ${Object.keys(SUB_DRAFTERS).join(', ')}` }],
+      });
+      return;
+    }
+
     const results = await Promise.all(
-      Object.entries(SUB_DRAFTERS).map(([key, drafter]) => draftOneSection(key, drafter, payload))
+      selected.map(([key, drafter]) => draftOneSection(key, drafter, payload))
     );
 
     const sectionErrors = results.filter(r => r.error);
     if (sectionErrors.length > 0) {
-      await supabase.from('compliance_drafts').upsert({
-        engagement_ref: engagementRef,
-        client_id: clientId,
+      await writeStatus(engagementRef, clientId, {
         status: 'failed',
         errors: sectionErrors,
-        completed_at: new Date().toISOString(),
       });
       return;
     }
@@ -160,33 +235,43 @@ exports.handler = async (event) => {
       validationErrors.push(...validateSection(r.key, r.section));
     }
 
+    // When drafting a subset (via `sections`), merge into whatever is already
+    // stored for this engagement rather than replacing it — otherwise re-running
+    // one section would silently discard the other three.
+    const isPartial = Array.isArray(sections) && sections.length > 0;
+    let mergedDraft = draft;
+    if (isPartial) {
+      const { data: existing } = await supabase
+        .from('compliance_drafts')
+        .select('compliance')
+        .eq('engagement_ref', engagementRef)
+        .maybeSingle();
+      mergedDraft = { ...(existing?.compliance || {}), ...draft };
+    }
+
     if (validationErrors.length > 0) {
-      await supabase.from('compliance_drafts').upsert({
-        engagement_ref: engagementRef,
-        client_id: clientId,
+      await writeStatus(engagementRef, clientId, {
         status: 'failed',
         errors: validationErrors,
-        compliance: draft, // kept for debugging, not for use
-        completed_at: new Date().toISOString(),
+        compliance: mergedDraft, // kept for debugging, not for use
       });
       return;
     }
 
-    await supabase.from('compliance_drafts').upsert({
-      engagement_ref: engagementRef,
-      client_id: clientId,
-      status: 'complete',
-      compliance: draft,
-      completed_at: new Date().toISOString(),
+    // A partial draft is only "complete" if every section is now present.
+    const allSectionsPresent = Object.keys(SUB_DRAFTERS)
+      .every(key => mergedDraft[key]);
+
+    await writeStatus(engagementRef, clientId, {
+      status: allSectionsPresent ? 'complete' : 'partial',
+      compliance: mergedDraft,
+      errors: null,
     });
 
   } catch (err) {
-    await supabase.from('compliance_drafts').upsert({
-      engagement_ref: engagementRef,
-      client_id: clientId,
+    await writeStatus(engagementRef, clientId, {
       status: 'failed',
       errors: [{ message: err.message }],
-      completed_at: new Date().toISOString(),
     });
   }
 };
