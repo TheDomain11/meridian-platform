@@ -112,7 +112,7 @@ async function draftOneSection(key, drafter, payload) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-5',
+      model: 'claude-opus-4-8',
       max_tokens: drafter.maxTokens || 4000,
       system: drafter.system,
       messages: [{ role: 'user', content: drafter.prompt(payload) }],
