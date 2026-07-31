@@ -146,7 +146,7 @@ async function generateConsultationNote({
   return Packer.toBuffer(doc);
 }
 
-module.exports = { generateConsultationNote };
+exports.generateConsultationNote = generateConsultationNote;
 
 // ── Netlify function entry point ──
 exports.handler = async (event) => {
