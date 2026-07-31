@@ -2,16 +2,29 @@
 // Meridian International — Document Assembly
 // netlify/functions/generate-consultation-note.js
 //
-// Takes client intake data + a VALIDATED compliance draft (from
-// draft-compliance-section.js, already passed citation validation)
-// and renders the final Consultation Summary Note .docx using the
-// shared document-template.js module — the SAME module every
-// engagement document uses, so formatting never drifts between
-// clients or document types.
+// Takes client intake data (still manually authored — see the
+// required fields below) plus an engagementRef, looks up the
+// VALIDATED compliance draft from Supabase directly, and renders
+// the final Consultation Summary Note .docx using the shared
+// document-template.js module.
+//
+// DESIGN CHANGE from the original version: this no longer trusts a
+// caller-supplied `_validated` flag. Nothing produced that flag, and
+// a client-supplied boolean is trivially wrong or spoofable anyway.
+// Instead this function reads compliance_drafts by engagement_ref
+// and checks status === 'complete' itself — the same source of
+// truth draft-compliance-section-background.js writes to. Validation
+// is derived, not asserted.
 // ═══════════════════════════════════════════════════════════════
 
+const { createClient } = require('@supabase/supabase-js');
 const T = require('./lib/document-template.js');
 const { Document, Packer } = T.docx;
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 /**
  * Renders one compliance field + its citation as a pair of
@@ -143,17 +156,36 @@ exports.handler = async (event) => {
   try {
     const payload = JSON.parse(event.body);
 
-    // Refuse to assemble if compliance data wasn't validated upstream.
-    // This function trusts draft-compliance-section.js's validation —
-    // it does not re-derive facts, it only renders what was already checked.
-    if (!payload.compliance || !payload._validated) {
+    if (!payload.engagementRef) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'engagementRef is required — used to look up the validated compliance draft.' }) };
+    }
+
+    // Look up the validated compliance draft ourselves. This is the actual
+    // validation gate — we do not trust anything the caller claims about
+    // whether the data was checked.
+    const { data: draft, error: fetchErr } = await supabase
+      .from('compliance_drafts')
+      .select('status, compliance')
+      .eq('engagement_ref', payload.engagementRef)
+      .maybeSingle();
+
+    if (fetchErr) {
+      return { statusCode: 500, body: JSON.stringify({ error: `Failed to look up compliance draft: ${fetchErr.message}` }) };
+    }
+    if (!draft) {
+      return { statusCode: 404, body: JSON.stringify({ error: `No compliance draft found for engagementRef "${payload.engagementRef}". Run draft-compliance-section-background.js first.` }) };
+    }
+    if (draft.status !== 'complete') {
       return {
         statusCode: 422,
-        body: JSON.stringify({ error: 'Compliance data missing validation flag. Run draft-compliance-section.js first.' }),
+        body: JSON.stringify({
+          error: `Compliance draft for "${payload.engagementRef}" is not complete (status: "${draft.status}"). All four sections must validate before a document can be generated.`,
+          status: draft.status,
+        }),
       };
     }
 
-    const buffer = await generateConsultationNote(payload);
+    const buffer = await generateConsultationNote({ ...payload, compliance: draft.compliance });
 
     // Upload to Supabase Storage / Google Drive here (integration point —
     // wire to whichever is confirmed as the document store), then return
