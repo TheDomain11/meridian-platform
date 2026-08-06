@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Full Import Process — Where Meridian Sits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0C2340;
+    --ink-mid:#1B3A5C;
+    --paper:#FFFFFF;
+    --parchment:#F8F6F1;
+    --slate:#4A5568;
+    --stone:#8A9BAE;
+    --gold:#C4973B;
+    --teal:#0A7E6B;
+    --border:#E2DDD5;
+    --teal-bg:#E9F3F1;
+    --gold-bg:#FAF3E7;
+    --stone-bg:#EEF1F3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--parchment);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    font-size:16px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:840px;margin:0 auto;padding:0 32px;}
+
+  /* ---------- Header ---------- */
+  header.masthead{
+    background:var(--ink);
+    color:var(--paper);
+    padding:52px 0 40px;
+    border-bottom:4px solid var(--gold);
+  }
+  header.masthead .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin-bottom:14px;
+  }
+  header.masthead h1{
+    font-family:'Cormorant Garamond',serif;
+    font-weight:600;
+    font-size:42px;
+    line-height:1.12;
+    margin-bottom:10px;
+  }
+  header.masthead p.sub{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-size:19px;
+    color:#C9D6E3;
+    max-width:600px;
+  }
+
+  /* ---------- Legend ---------- */
+  .legend{
+    background:var(--paper);
+    border-bottom:1px solid var(--border);
+    padding:22px 0;
+  }
+  .legend .wrap{display:flex;gap:28px;flex-wrap:wrap;align-items:center;}
+  .legend-item{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--slate);}
+  .swatch{width:14px;height:14px;border-radius:4px;flex-shrink:0;}
+  .swatch.stone{background:var(--stone-bg);border:1.5px solid var(--stone);}
+  .swatch.teal{background:var(--teal-bg);border:1.5px solid var(--teal);}
+  .swatch.gold{background:var(--gold-bg);border:1.5px dashed var(--gold);}
+
+  /* ---------- Flowchart ---------- */
+  section.flow{padding:56px 0 72px;}
+  .timeline{position:relative;}
+  .timeline::before{
+    content:'';
+    position:absolute;
+    left:27px;
+    top:6px;
+    bottom:6px;
+    width:2px;
+    background:var(--border);
+  }
+  .stage{position:relative;padding-left:72px;margin-bottom:22px;}
+  .stage:last-child{margin-bottom:0;}
+  .stage-num{
+    position:absolute;
+    left:0;top:0;
+    width:56px;height:56px;
+    border-radius:50%;
+    background:var(--paper);
+    border:2px solid var(--stone);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Cormorant Garamond',serif;
+    font-size:22px;font-weight:600;
+    color:var(--ink);
+    z-index:1;
+  }
+  .stage.meridian .stage-num{border-color:var(--teal);}
+  .card{
+    background:var(--paper);
+    border:1px solid var(--border);
+    border-left:4px solid var(--stone);
+    border-radius:0 10px 10px 0;
+    padding:16px 20px;
+  }
+  .stage.meridian .card{border-left-color:var(--teal);}
+  .card h3{
+    font-family:'Inter',sans-serif;
+    font-size:16.5px;
+    font-weight:600;
+    color:var(--ink);
+    margin-bottom:5px;
+  }
+  .card p{font-size:14px;color:var(--slate);}
+  .card .doc{
+    margin-top:8px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    color:var(--ink-mid);
+  }
+  .note{
+    margin-top:10px;
+    background:var(--parchment);
+    border-left:3px solid var(--stone);
+    padding:8px 12px;
+    font-size:13px;
+    color:var(--slate);
+    border-radius:0 6px 6px 0;
+  }
+  .flag{
+    margin-top:10px;
+    background:var(--gold-bg);
+    border-left:3px solid var(--gold);
+    padding:9px 13px;
+    font-size:13px;
+    color:#6B4E17;
+    border-radius:0 6px 6px 0;
+  }
+
+  /* ---------- Entry / Exit banners ---------- */
+  .boundary{
+    position:relative;
+    margin:8px 0 34px;
+    padding-left:72px;
+  }
+  .boundary .line{
+    border-top:2px dashed var(--gold);
+    position:relative;
+  }
+  .boundary .tag{
+    position:absolute;
+    top:-13px;
+    left:50%;
+    transform:translateX(-50%);
+    background:var(--gold);
+    color:var(--paper);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    padding:4px 14px;
+    border-radius:100px;
+    white-space:nowrap;
+  }
+
+  footer{
+    background:var(--ink);
+    color:#9FB2C6;
+    padding:28px 0;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11.5px;
+    text-align:center;
+  }
+  footer .wrap{display:flex;flex-direction:column;gap:4px;align-items:center;}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Meridian Capital Holdings Limited · t/a Meridian International</div>
+    <h1>The Full Import Process</h1>
+    <p class="sub">Everything that happens from a client's first idea to import something, to that product landing on their shelf — and exactly where Meridian's engagement sits inside it.</p>
+  </div>
+</header>
+
+<div class="legend">
+  <div class="wrap">
+    <div class="legend-item"><span class="swatch stone"></span>Client's own process — outside Meridian's scope</div>
+    <div class="legend-item"><span class="swatch teal"></span>Meridian's engagement</div>
+    <div class="legend-item"><span class="swatch gold"></span>Entry / exit boundary or risk flag</div>
+  </div>
+</div>
+
+<section class="flow">
+  <div class="wrap">
+    <div class="timeline">
+
+      <div class="stage">
+        <div class="stage-num">1</div>
+        <div class="card">
+          <h3>Business need identified</h3>
+          <p>The client identifies a product to import and a reason to import it — a gap in what's currently available to them, a cost problem with a current supplier, or a new venture entirely.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">2</div>
+        <div class="card">
+          <h3>Researches sourcing options</h3>
+          <p>The client explores how to actually get it done — sourcing it themselves, another agent, or reaching out to Meridian. Nothing here is Meridian's doing.</p>
+        </div>
+      </div>
+
+      <div class="boundary"><div class="line"><span class="tag">Entry — Meridian's engagement begins</span></div></div>
+
+      <div class="stage meridian">
+        <div class="stage-num">3</div>
+        <div class="card">
+          <h3>Enquiry submitted</h3>
+          <p>Client submits the contact form. Logged to Supabase, auto-acknowledgement sent via Resend, internal notification to admin@.</p>
+          <div class="doc">submit-enquiry.js</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">4</div>
+        <div class="card">
+          <h3>Consultation call</h3>
+          <p>Ten structured intake fields recorded — product spec, quantity, budget, timeline, prior import experience, and more.</p>
+          <div class="doc">CSN Preparation Protocol v4 — Phase 1</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">5</div>
+        <div class="card">
+          <h3>Feasibility research</h3>
+          <p>Three to five real supplier quotes pulled from Alibaba, Made-in-China, and Global Sources before any FOB figure is written down.</p>
+          <div class="doc">CSN Preparation Protocol v4 — Phase 2</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">6</div>
+        <div class="card">
+          <h3>Compliance research</h3>
+          <p>Eight items checked against primary sources: HS classification, SACU duty, NRCS, ICASA (wired and RF), DFFE/EPR, Section 59A, SC-CF-30 invoice fields.</p>
+          <div class="doc">CSN Preparation Protocol v4 — Phase 3</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">7</div>
+        <div class="card">
+          <h3>Scope determination</h3>
+          <p>Full six-service mandate by default, or a defined subset if the client already holds some capability themselves.</p>
+          <div class="doc">CSN Preparation Protocol v4 — Phase 4</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">8</div>
+        <div class="card">
+          <h3>Fee calculation</h3>
+          <p>Built on the verified FOB estimate from step 5, not an assumption.</p>
+          <div class="doc">CSN Preparation Protocol v4 — Phase 5</div>
+          <div class="note">Fee track splits here: USD 15,000 FOB and above runs on commission (8–10%, tapering to 3–5% above USD 100,000, USD 950 minimum). Below that, the engagement defaults to standalone service fees instead.</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">9</div>
+        <div class="card">
+          <h3>CSN issued</h3>
+          <p>Assembled, verified, and issued as a locked PDF — within 24 hours of the call.</p>
+          <div class="doc">CSN Preparation Protocol v4 — Phase 6</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">10</div>
+        <div class="card">
+          <h3>Engagement Letter signed</h3>
+          <p>Deposit paid on signature — USD 950 for commission engagements, or 50% of the total for standalone-fee engagements.</p>
+          <div class="doc">Engagement_Letter_Template.md, Section 3</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">11</div>
+        <div class="card">
+          <h3>Supplier identification &amp; verification</h3>
+          <p>Suppliers sourced across B2B platforms; certification, tenure, and manufacturing capability verified before shortlisting.</p>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">12</div>
+        <div class="card">
+          <h3>RFQ management</h3>
+          <p>Structured request-for-quote process run across the verified shortlist — price, MOQ, lead time, terms compared side by side.</p>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">13</div>
+        <div class="card">
+          <h3>Contract drafting &amp; review</h3>
+          <p>The cross-border supply agreement — terms, Incoterms, payment terms, confidentiality.</p>
+          <div class="flag">⚑ HK LPO ss.46-47 exposure lives here. Unvetted by qualified HK counsel — caps how far this stage can be marketed or scaled until reviewed.</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">14</div>
+        <div class="card">
+          <h3>Inspection coordination</h3>
+          <p>Pre-shipment inspection coordinated through independent, multi-client third-party firms — QIMA, SGS, Bureau Veritas.</p>
+          <div class="flag">⚑ Deliberately structured this way, not through a personally-directed agent, to avoid a dependent-agent Z-visa/PE finding. Sound in principle, not yet confirmed with specialist PRC immigration counsel.</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">15</div>
+        <div class="card">
+          <h3>Compliance &amp; documentation</h3>
+          <p>The Phase 3 verification logic reapplied against this specific product — never carried over from a previous client.</p>
+          <div class="doc">Trade Compliance Advisory Note · Commercial Invoice · Packing List</div>
+        </div>
+      </div>
+
+      <div class="stage meridian">
+        <div class="stage-num">16</div>
+        <div class="card">
+          <h3>Close-out</h3>
+          <p>Balance invoiced and paid — net 7 for commission engagements, on delivery for standalone-fee engagements. Final documents issued, engagement logged.</p>
+          <div class="doc">Fee Invoice · Engagement Close-Out Note</div>
+        </div>
+      </div>
+
+      <div class="boundary"><div class="line"><span class="tag">Exit — Meridian's engagement ends</span></div></div>
+
+      <div class="stage">
+        <div class="stage-num">17</div>
+        <div class="card">
+          <h3>Goods shipped</h3>
+          <p>Risk passes to the client at the point defined by the agreed Incoterm — typically once goods pass the ship's rail under FOB.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">18</div>
+        <div class="card">
+          <h3>Customs clearance</h3>
+          <p>Executed by the client's own SARS-licensed clearing agent, using the documentation Meridian prepared at step 15. Meridian does not act as or supervise the clearing agent.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">19</div>
+        <div class="card">
+          <h3>Duty &amp; VAT paid</h3>
+          <p>Paid by the client directly to SARS, on the client's own account.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">20</div>
+        <div class="card">
+          <h3>Goods released &amp; delivered</h3>
+          <p>Cleared goods released and delivered to the client's premises.</p>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="stage-num">21</div>
+        <div class="card">
+          <h3>Client distributes, sells, or uses the goods</h3>
+          <p>Entirely outside Meridian's scope — the engagement is already closed by this point.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Living document — update as decisions change. Meridian occupies steps 3–16 of 21.</div>
+    <div>Sources: CSN_preparation_protocol_v4.md · Engagement_Letter_Template.md · Legal_and_Professional_Review_Backlog.md — all in Google Drive, 00_Templates / 04_Review_Backlog</div>
+    <div>Last updated: 2026-08-06</div>
+  </div>
+</footer>
+
+</body>
+</html>
