@@ -10,6 +10,7 @@ import {
   LogOut,
   Inbox,
   Trash2,
+  Workflow,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -21,6 +22,7 @@ const nav = [
   { to: '/invoicing', label: 'Invoicing', icon: FileText },
   { to: '/team', label: 'Team', icon: UserCog },
   { to: '/approvals', label: 'Approvals', icon: Inbox },
+  { to: '/import-process', label: 'Import Process', icon: Workflow },
 ]
 
 const bottom = [

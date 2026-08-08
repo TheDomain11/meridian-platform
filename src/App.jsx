@@ -16,6 +16,7 @@ import MemberDetail from './pages/MemberDetail.jsx'
 import Settings from './pages/Settings.jsx'
 import Approvals from './pages/Approvals.jsx'
 import Trash from './pages/Trash.jsx'
+import ImportProcess from './pages/ImportProcess.jsx'
 import { AppProvider } from './context/AppContext.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="settings" element={<Settings />} />
           <Route path="approvals" element={<Approvals />} />
           <Route path="approvals/:id" element={<Approvals />} />
+          <Route path="import-process" element={<ImportProcess />} />
           <Route path="trash" element={<Trash />} />
         </Route>
       </Routes>
