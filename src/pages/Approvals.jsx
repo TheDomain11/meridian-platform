@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 import { Pencil, Send, Check, Trash2 } from 'lucide-react'
 import PageHeader from '../components/PageHeader.jsx'
+import { linkify } from '../lib/linkify.jsx'
 
 const INTENT_LABEL = {
   NEW_ENQUIRY: 'New enquiry',
@@ -157,7 +158,7 @@ export default function Approvals() {
                 />
               ) : (
                 <div className="bg-cream border border-navy/8 px-4 py-3 mb-3">
-                  <p className="text-sm font-body text-slate whitespace-pre-wrap">{approval.draftResponse}</p>
+                  <p className="text-sm font-body text-slate whitespace-pre-wrap">{linkify(approval.draftResponse)}</p>
                 </div>
               )}
 
