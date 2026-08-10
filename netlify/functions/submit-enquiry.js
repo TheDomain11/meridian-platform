@@ -58,6 +58,22 @@ async function classifyAndDraft({ fromName, fromEmail, subject, bodyText }) {
   }
 }
 
+// Composes the client's notes from the enquiry detail fields so a new client record
+// captures why they got in touch, not just their contact info. Empty/null fields are
+// skipped rather than printed as a placeholder.
+function buildClientNotes(data) {
+  const lines = [
+    ['Product/category', data.product_category],
+    ['Approx. order value', data.order_value],
+    ['Timeline', data.timeline],
+    ['Existing suppliers', data.existing_suppliers],
+  ]
+    .filter(([, value]) => value)
+    .map(([label, value]) => `${label}: ${value}`)
+
+  return [...lines, '', `Message: ${data.message}`].join('\n')
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 204, headers: corsHeaders, body: '' }
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers: corsHeaders, body: 'Method Not Allowed' }
@@ -127,10 +143,10 @@ exports.handler = async (event) => {
             contact: data.name,
             email: data.email,
             phone: data.phone || '',
-            country: '',
+            country: data.destination_market || '',
             status: 'Pipeline',
             source: 'web_enquiry',
-            notes: '',
+            notes: buildClientNotes(data),
             open_orders: 0,
           })
           .select()
