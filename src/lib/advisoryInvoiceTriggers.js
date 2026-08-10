@@ -11,7 +11,8 @@ const FULL_MANDATE_TRIGGERS = {
     qty: 1,
     unitPrice: 950,
   },
-  Delivery: {
+  // Renamed from 'Delivery' to match the merged 11-stage EngagementTimeline sequence.
+  Delivered: {
     description: 'Balance - final commission (confirm FOB value and rate)',
     qty: 1,
     // Force manual entry — the commission depends on the confirmed FOB value and rate,

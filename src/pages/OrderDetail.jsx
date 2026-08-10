@@ -3,12 +3,25 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Package, DollarSign, MapPin, Calendar, Tag, Pencil } from 'lucide-react'
 import { useOrders, useClients, useInvoices } from '../context/AppContext'
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx'
-import StatusTracker from '../components/orders/StatusTracker.jsx'
-import AdvisoryStageTracker, { STEPS as ADVISORY_STEPS } from '../components/orders/AdvisoryStageTracker.jsx'
+import EngagementTimeline, { STEPS as ENGAGEMENT_STEPS } from '../components/orders/EngagementTimeline.jsx'
 import NewOrderPanel from '../components/orders/NewOrderPanel.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
 import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
 import { getInvoiceTrigger } from '../lib/advisoryInvoiceTriggers.js'
+
+// Whenever advisory_stage moves onto one of these goods-equivalent stages, orders.status
+// is kept in sync so anything still reading the old field (Dashboard open-orders logic,
+// Orders.jsx filters) doesn't go stale. The four advisory-only stages (Consultation,
+// Engagement Letter, Contract, Compliance Review) have no goods-status equivalent, so
+// status is left untouched when advisory_stage moves through those.
+const GOODS_STATUS_BY_STAGE = {
+  'Supplier Sourcing & Verification': 'Sourcing',
+  Sampling: 'Sampling',
+  Production: 'Production',
+  'Inspection / QC': 'QC',
+  Shipped: 'Shipped',
+  Delivered: 'Delivered',
+}
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -82,16 +95,26 @@ export default function OrderDetail() {
   }
 
   // Moves advisory_stage one step at a time in either direction via updateOrder
-  // (current-or-adjacent-only enforced by AdvisoryStageTracker itself) — going back a step
-  // lets a mistake be corrected without the Edit panel. Only an actual forward move checks
-  // whether the new stage should prompt a draft invoice and, if so, opens NewInvoicePanel
-  // pre-filled — never creates or sends anything automatically. Stepping backward never
-  // re-triggers an invoice prompt for a stage already passed through.
-  async function handleAdvisoryStageClick(nextStage) {
+  // (current-or-adjacent-only enforced by EngagementTimeline itself for Full Mandate;
+  // Standalone's Mark Complete always targets 'Delivered' directly) — going back a step
+  // lets a mistake be corrected without the Edit panel. Whenever the new stage is one of
+  // the goods-equivalent stages, status is kept in sync in the same write, regardless of
+  // direction — that's a pure data-consistency rule, not a business trigger. Only an actual
+  // forward move checks whether the new stage should prompt a draft invoice and, if so,
+  // opens NewInvoicePanel pre-filled — never creates or sends anything automatically.
+  // Stepping backward never re-triggers an invoice prompt for a stage already passed
+  // through.
+  async function handleStageClick(nextStage) {
     if (nextStage === order.advisoryStage) return
 
-    const isForward = ADVISORY_STEPS.indexOf(nextStage) > ADVISORY_STEPS.indexOf(order.advisoryStage)
-    await updateOrder(order.id, { ...order, advisoryStage: nextStage })
+    const isForward = ENGAGEMENT_STEPS.indexOf(nextStage) > ENGAGEMENT_STEPS.indexOf(order.advisoryStage)
+    const syncedStatus = GOODS_STATUS_BY_STAGE[nextStage]
+
+    await updateOrder(order.id, {
+      ...order,
+      advisoryStage: nextStage,
+      ...(syncedStatus ? { status: syncedStatus } : {}),
+    })
     if (!isForward) return
 
     const trigger = getInvoiceTrigger(order.engagementType, nextStage)
@@ -156,20 +179,17 @@ export default function OrderDetail() {
         </div>
       </div>
 
-      {/* Status tracker */}
+      {/* Engagement timeline — single merged progress UI, replaces the old separate
+          goods StatusTracker + advisory AdvisoryStageTracker blocks */}
       <div className="bg-white border border-navy/8 px-8 py-5 mb-4">
         <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">
-          Progress
+          Engagement Timeline
         </p>
-        <StatusTracker status={order.status} />
-      </div>
-
-      {/* Advisory stage tracker */}
-      <div className="bg-white border border-navy/8 px-8 py-5 mb-4">
-        <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">
-          Advisory Progress
-        </p>
-        <AdvisoryStageTracker stage={order.advisoryStage} onStageClick={handleAdvisoryStageClick} />
+        <EngagementTimeline
+          engagementType={order.engagementType}
+          stage={order.advisoryStage}
+          onStageClick={handleStageClick}
+        />
       </div>
 
       {/* Details grid */}
