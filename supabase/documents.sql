@@ -20,6 +20,15 @@ create table if not exists documents (
   sent_to     text
 );
 
+-- GRANT is separate from — and a prerequisite for — RLS: a role with zero base table
+-- privileges gets "permission denied for table documents" before RLS is ever evaluated,
+-- no matter what policy exists. Every other table in this schema (clients, orders, ...) has
+-- this already, applied automatically when Supabase provisioned the project; a table
+-- created directly via SQL doesn't inherit it, so it has to be granted explicitly here.
+-- (Found live in production: the first version of this file omitted this and broke the
+-- whole app, since AppContext's single fetchAll() throws on any one table's error.)
+grant select, insert, update, delete on documents to anon, authenticated;
+
 alter table documents enable row level security;
 
 -- Matches the existing allow_all posture already on clients/orders/invoices — the app's
