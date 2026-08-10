@@ -1,9 +1,17 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
+const { MERIDIAN_SYSTEM_PROMPT } = require('./lib/meridian-ai-context.js')
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 if (!ANTHROPIC_API_KEY) throw new Error('Missing required environment variable: ANTHROPIC_API_KEY')
 const AI_PROVIDER = process.env.AI_PROVIDER || 'claude'
 const MODEL = 'claude-sonnet-4-6'
+
+// web_search_20250305 is Anthropic's server-executed search tool — Claude decides per call
+// whether a question actually needs it, so cost only rises when research is genuinely
+// required. Only ever passed to the two client-correspondence features that answer
+// outward-facing questions (email_reply, email_process); order/client/invoice/dashboard
+// summaries describe Meridian's own internal data, so there's nothing external to search.
+const WEB_SEARCH_TOOL = [{ type: 'web_search_20250305', name: 'web_search' }]
 
 const MERIDIAN_CONTEXT = `You are the AI engine behind Meridian Platform, the internal operating system for Meridian International — a Hong Kong-registered China sourcing and procurement agency. The owner, George, holds both an LLB and an LLM (dual legal qualifications) and is based in Guangzhou. Meridian operates on a commission-only basis: it sources factories, negotiates pricing, and manages quality control and logistics on behalf of B2B clients — it never holds inventory itself. Target markets are South Africa, the EU, and the UK.
 
@@ -21,10 +29,21 @@ function safeParseJson(text, fallback) {
   }
 }
 
-async function callClaude(systemPrompt, userMessage, maxTokens = 1024) {
+// tools is optional — only email_reply and email_process (currently) pass WEB_SEARCH_TOOL.
+// Giving Claude the tool doesn't force its use; it decides per call whether the question
+// needs a search, so cost stays flat for routine replies.
+async function callClaude(systemPrompt, userMessage, maxTokens = 1024, tools = null) {
   if (AI_PROVIDER !== 'claude') {
     throw new Error(`Unsupported AI_PROVIDER: "${AI_PROVIDER}"`)
   }
+
+  const body = {
+    model: MODEL,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userMessage }],
+  }
+  if (tools) body.tools = tools
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -33,19 +52,19 @@ async function callClaude(systemPrompt, userMessage, maxTokens = 1024) {
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
     },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    }),
+    body: JSON.stringify(body),
   })
 
   const result = await res.json()
   if (!res.ok) {
     throw new Error(`Claude API error: ${result.error?.message || JSON.stringify(result)}`)
   }
-  return result.content?.[0]?.text ?? ''
+  // With a tool available, content can include server_tool_use / web_search_tool_result
+  // blocks ahead of the final text block(s) — content[0] is no longer reliably the answer,
+  // so collect every text block instead (matches draft-compliance-section-background.js's
+  // pattern for the same reason).
+  const textBlocks = (result.content || []).filter(b => b.type === 'text').map(b => b.text)
+  return textBlocks.join('\n').trim()
 }
 
 // ── Feature handlers ──────────────────────────────────────────────────────────
@@ -55,13 +74,15 @@ async function callClaude(systemPrompt, userMessage, maxTokens = 1024) {
 async function emailProcess(payload) {
   const { fromName = '', fromEmail = '', subject = '', bodyText = '' } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${MERIDIAN_SYSTEM_PROMPT}
+
+${MERIDIAN_CONTEXT}
 
 You are triaging an inbound email. Do all of the following:
 1. Classify the intent as exactly one of: NEW_ENQUIRY, RFQ, STATUS_UPDATE, GENERAL
 2. Extract the sender's name, company (if mentioned or reasonably inferable), product interest, and budget (if mentioned)
 3. Write a one-line summary of the enquiry
-4. Draft a professional reply in George's voice, signed "George"
+4. Draft a professional reply in George's voice, signed "George". If the sender's question involves current regulatory, tariff, or market-access facts, use web_search to verify before answering — do not answer a factual question like that from training knowledge alone.
 
 Respond with ONLY a JSON object — no markdown fences, no commentary — in exactly this shape:
 {
@@ -75,7 +96,7 @@ Respond with ONLY a JSON object — no markdown fences, no commentary — in exa
 }`
 
   const userMessage = `From: ${fromName} <${fromEmail}>\nSubject: ${subject}\n\n${bodyText}`
-  const raw = await callClaude(systemPrompt, userMessage, 1024)
+  const raw = await callClaude(systemPrompt, userMessage, 1024, WEB_SEARCH_TOOL)
 
   const result = safeParseJson(raw, {
     intent: 'GENERAL',
@@ -93,15 +114,17 @@ Respond with ONLY a JSON object — no markdown fences, no commentary — in exa
 async function emailReply(payload) {
   const { fromName = '', fromEmail = '', subject = '', bodyText = '', instruction = '' } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${MERIDIAN_SYSTEM_PROMPT}
 
-Below the line is the email you're replying to, plus any extra instruction from George about how to handle it. Draft a professional reply in George's voice, signed "George". Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "draftResponse": string }`
+${MERIDIAN_CONTEXT}
+
+Below the line is the email you're replying to, plus any extra instruction from George about how to handle it. Draft a professional reply in George's voice, signed "George". If the email or George's instruction involves a current regulatory, tariff, or market-access question, use web_search to verify before answering — do not answer a factual question like that from training knowledge alone. Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "draftResponse": string }`
 
   const userMessage = `From: ${fromName} <${fromEmail}>\nSubject: ${subject}\n\n${bodyText}${
     instruction ? `\n\n---\nGeorge's instruction for this reply: ${instruction}` : ''
   }`
 
-  const raw = await callClaude(systemPrompt, userMessage, 1024)
+  const raw = await callClaude(systemPrompt, userMessage, 1024, WEB_SEARCH_TOOL)
   const result = safeParseJson(raw, { draftResponse: '' })
   return { result, action: null, data: null }
 }
@@ -109,7 +132,9 @@ Below the line is the email you're replying to, plus any extra instruction from 
 async function orderSummary(payload) {
   const { order = {}, client = {} } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${MERIDIAN_SYSTEM_PROMPT}
+
+${MERIDIAN_CONTEXT}
 
 Summarise the status of this order and the specific next actions needed. Be concrete — reference the actual order details given. Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "summary": string }`
 
@@ -122,7 +147,9 @@ Summarise the status of this order and the specific next actions needed. Be conc
 async function clientSummary(payload) {
   const { client = {}, orders = [], invoices = [] } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${MERIDIAN_SYSTEM_PROMPT}
+
+${MERIDIAN_CONTEXT}
 
 Summarise this client's history and the current state of the relationship — order volume, payment reliability, and anything that needs attention. Be concrete. Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "summary": string }`
 
@@ -135,7 +162,9 @@ Summarise this client's history and the current state of the relationship — or
 async function invoiceChase(payload) {
   const { invoice = {}, client = {} } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${MERIDIAN_SYSTEM_PROMPT}
+
+${MERIDIAN_CONTEXT}
 
 Draft a payment reminder email in George's voice, signed "George". Tone should scale with how overdue the invoice is — polite if just due, firmer if significantly overdue — but always professional. Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "draftResponse": string }`
 
@@ -146,7 +175,9 @@ Draft a payment reminder email in George's voice, signed "George". Tone should s
 }
 
 async function dashboardSummary(payload) {
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${MERIDIAN_SYSTEM_PROMPT}
+
+${MERIDIAN_CONTEXT}
 
 Give a short natural-language overview of business status from the figures provided, ending with specific priority actions for today — not generic advice, reference the actual numbers and named items given. Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "summary": string }`
 
@@ -169,7 +200,9 @@ async function shellCommand(payload) {
     return { result: 'Please type an instruction or question.', action: 'none', data: null }
   }
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${MERIDIAN_SYSTEM_PROMPT}
+
+${MERIDIAN_CONTEXT}
 
 You are the command interpreter for Meridian Platform's AI Shell — a single command bar where George types freeform instructions or questions. You're given the instruction plus a compact list of existing clients, orders, and suppliers (id + display name + status) so you can resolve names mentioned in the instruction to their record IDs.
 

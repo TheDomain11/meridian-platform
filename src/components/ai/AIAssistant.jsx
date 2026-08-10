@@ -156,7 +156,7 @@ export default function AIAssistant() {
               <Send size={15} strokeWidth={1.75} />
             </button>
           </div>
-          <CostBadge tier="sonnet-light" />
+          <CostBadge tier="sonnet-search" />
         </form>
       </div>
     </>
