@@ -37,23 +37,32 @@ async function sendResendEmail({ to, subject, text }) {
 async function classifyAndDraft({ fromName, fromEmail, subject, bodyText }) {
   const fallback = { summary: subject, draftResponse: '' }
 
-  try {
-    const res = await fetch(`${SITE_URL}/.netlify/functions/ai-service`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        feature: 'email_process',
-        payload: { fromName, fromEmail, subject, bodyText },
-      }),
-    })
-    const json = await res.json()
-    if (!res.ok || json.error) {
-      throw new Error(json.error || `ai-service responded with status ${res.status}`)
+  // Paused by default — this is the Anthropic API cost, not the enquiry pipeline itself.
+  // The enquiry row, client record, and email_approvals entry are all still created either
+  // way; George just writes the reply himself instead of editing an AI draft. Re-enable by
+  // setting AI_EMAIL_DRAFTING_ENABLED=true in Netlify's site environment variables — no
+  // code change needed.
+  if (process.env.AI_EMAIL_DRAFTING_ENABLED === 'true') {
+    try {
+      const res = await fetch(`${SITE_URL}/.netlify/functions/ai-service`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feature: 'email_process',
+          payload: { fromName, fromEmail, subject, bodyText },
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) {
+        throw new Error(json.error || `ai-service responded with status ${res.status}`)
+      }
+      return json.result ?? fallback
+    } catch (err) {
+      // Degrade gracefully rather than lose the enquiry — the raw enquiry row is already saved.
+      console.error('[submit-enquiry] ai-service call failed:', err)
+      return fallback
     }
-    return json.result ?? fallback
-  } catch (err) {
-    // Degrade gracefully rather than lose the enquiry — the raw enquiry row is already saved.
-    console.error('[submit-enquiry] ai-service call failed:', err)
+  } else {
     return fallback
   }
 }
