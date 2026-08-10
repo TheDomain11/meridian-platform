@@ -1,4 +1,4 @@
-const STEPS = [
+export const STEPS = [
   'Consultation', 'Engagement Letter', 'Supplier ID', 'RFQ',
   'Contract', 'Compliance', 'Inspection', 'Delivery',
 ]
@@ -7,9 +7,10 @@ const STEPS = [
 // advisory engagement pipeline rather than the goods-movement status. There's no
 // "Cancelled" case here — an advisory engagement doesn't have that terminal state.
 //
-// onStageClick (optional) makes the dots interactive: only the current stage and the very
-// next one are clickable, so callers can't skip ahead more than one stage or move backward
-// through this UI — that's left to the Edit panel for edge cases.
+// onStageClick (optional) makes the dots interactive: only the current stage and its
+// immediate neighbors (one back, one forward) are clickable — one step at a time in either
+// direction, so a mistake can be corrected without opening the Edit panel, but you still
+// can't jump straight to an arbitrary stage through this UI.
 export default function AdvisoryStageTracker({ stage, onStageClick }) {
   const currentIdx = STEPS.indexOf(stage)
 
@@ -18,7 +19,7 @@ export default function AdvisoryStageTracker({ stage, onStageClick }) {
       {STEPS.map((step, i) => {
         const done = i < currentIdx
         const active = i === currentIdx
-        const clickable = !!onStageClick && (i === currentIdx || i === currentIdx + 1)
+        const clickable = !!onStageClick && Math.abs(i - currentIdx) <= 1
 
         return (
           <div key={step} className="flex-1 flex flex-col items-center relative">

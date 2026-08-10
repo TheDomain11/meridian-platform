@@ -4,7 +4,7 @@ import { ArrowLeft, Package, DollarSign, MapPin, Calendar, Tag, Pencil } from 'l
 import { useOrders, useClients, useInvoices } from '../context/AppContext'
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx'
 import StatusTracker from '../components/orders/StatusTracker.jsx'
-import AdvisoryStageTracker from '../components/orders/AdvisoryStageTracker.jsx'
+import AdvisoryStageTracker, { STEPS as ADVISORY_STEPS } from '../components/orders/AdvisoryStageTracker.jsx'
 import NewOrderPanel from '../components/orders/NewOrderPanel.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
 import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
@@ -81,14 +81,18 @@ export default function OrderDetail() {
     return `INV-${String(max + 1).padStart(3, '0')}`
   }
 
-  // Advances advisory_stage via updateOrder (current-or-next-only enforced by
-  // AdvisoryStageTracker itself). When that's an actual change, checks whether the new
-  // stage should prompt a draft invoice and, if so, opens NewInvoicePanel pre-filled —
-  // never creates or sends anything automatically.
+  // Moves advisory_stage one step at a time in either direction via updateOrder
+  // (current-or-adjacent-only enforced by AdvisoryStageTracker itself) — going back a step
+  // lets a mistake be corrected without the Edit panel. Only an actual forward move checks
+  // whether the new stage should prompt a draft invoice and, if so, opens NewInvoicePanel
+  // pre-filled — never creates or sends anything automatically. Stepping backward never
+  // re-triggers an invoice prompt for a stage already passed through.
   async function handleAdvisoryStageClick(nextStage) {
-    const isChange = nextStage !== order.advisoryStage
+    if (nextStage === order.advisoryStage) return
+
+    const isForward = ADVISORY_STEPS.indexOf(nextStage) > ADVISORY_STEPS.indexOf(order.advisoryStage)
     await updateOrder(order.id, { ...order, advisoryStage: nextStage })
-    if (!isChange) return
+    if (!isForward) return
 
     const trigger = getInvoiceTrigger(order.engagementType, nextStage)
     if (!trigger) return
