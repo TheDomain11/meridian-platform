@@ -37,17 +37,22 @@ function fmt(n) {
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export default function NewInvoicePanel({ open, onClose, onSave, initialData, clients, orders, nextInvoiceNo }) {
+export default function NewInvoicePanel({ open, onClose, onSave, initialData, prefillData, clients, orders, nextInvoiceNo }) {
   const [form, setForm] = useState(EMPTY())
 
   useEffect(() => {
     if (!open) return
     if (initialData) {
       setForm({ ...initialData })
+    } else if (prefillData) {
+      // Same "New Invoice" flow as the empty case below — clientId/orderId/lineItems etc.
+      // are just pre-populated (e.g. from an advisory-stage trigger). isEdit stays false
+      // since this isn't editing an existing invoice.
+      setForm({ ...EMPTY(), invoiceNo: nextInvoiceNo, ...prefillData })
     } else {
       setForm({ ...EMPTY(), invoiceNo: nextInvoiceNo })
     }
-  }, [open, initialData, nextInvoiceNo])
+  }, [open, initialData, prefillData, nextInvoiceNo])
 
   function set(field, value) {
     setForm(prev => {

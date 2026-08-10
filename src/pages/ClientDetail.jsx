@@ -1,15 +1,26 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Building2, Mail, Phone, MapPin, Tag, Pencil } from 'lucide-react'
-import { useClients } from '../context/AppContext'
+import { useClients, useOrders, useInvoices } from '../context/AppContext'
 import StatusBadge from '../components/clients/StatusBadge.jsx'
 import AddClientPanel from '../components/clients/AddClientPanel.jsx'
 import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
+import AdvisoryStageBadge from '../components/orders/AdvisoryStageBadge.jsx'
+import InvoiceStatusBadge from '../components/invoicing/InvoiceStatusBadge.jsx'
 
 function formatDate(iso) {
   if (!iso) return '—'
   const d = new Date(iso)
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+function formatCurrency(val) {
+  if (val === undefined || val === null || val === '') return '—'
+  return `$${Number(val).toLocaleString('en-US')}`
+}
+
+function invoiceTotal(lineItems = []) {
+  return lineItems.reduce((sum, l) => sum + (parseFloat(l.qty) || 0) * (parseFloat(l.unitPrice) || 0), 0)
 }
 
 function DetailRow({ icon: Icon, label, value }) {
@@ -34,13 +45,83 @@ function PlaceholderSection({ title }) {
   )
 }
 
+function LinkedOrdersSection({ orders }) {
+  return (
+    <div className="bg-white border border-navy/8 p-5">
+      <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">Linked Orders</p>
+      {orders.length === 0 ? (
+        <p className="text-sm text-slate/35 font-body">No orders yet.</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {orders.map(order => (
+            <Link
+              key={order.id}
+              to={`/orders/${order.id}`}
+              className="flex items-center justify-between gap-3 py-2 border-b border-navy/6 last:border-0 hover:bg-navy/[0.025] transition-colors duration-100 -mx-1 px-1"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-body text-navy font-medium truncate">{order.orderId}</p>
+                <p className="text-xs font-body text-slate/50 truncate">{order.category}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <AdvisoryStageBadge stage={order.advisoryStage} />
+                <span className="text-sm font-body text-slate tabular-nums">{formatCurrency(order.value)}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DocumentsSection({ invoices }) {
+  return (
+    <div className="bg-white border border-navy/8 p-5">
+      <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">Documents</p>
+      {invoices.length === 0 ? (
+        <p className="text-sm text-slate/35 font-body">No invoices yet.</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {invoices.map(inv => (
+            <Link
+              key={inv.id}
+              to={`/invoicing/${inv.id}`}
+              className="flex items-center justify-between gap-3 py-2 border-b border-navy/6 last:border-0 hover:bg-navy/[0.025] transition-colors duration-100 -mx-1 px-1"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-body text-navy font-medium truncate">{inv.invoiceNo}</p>
+                <p className="text-xs font-body text-slate/50 truncate">{formatDate(inv.issueDate)}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <InvoiceStatusBadge status={inv.status} />
+                <span className="text-sm font-body text-slate tabular-nums">{formatCurrency(invoiceTotal(inv.lineItems))}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ClientDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { clients, updateClient } = useClients()
+  const { orders } = useOrders()
+  const { invoices } = useInvoices()
   const [editOpen, setEditOpen] = useState(false)
 
   const client = clients.find(c => c.id === id)
+  const clientOrders = useMemo(
+    () => orders.filter(o => o.clientId === id),
+    [orders, id]
+  )
+  const clientInvoices = useMemo(
+    () => invoices.filter(i => i.clientId === id),
+    [invoices, id]
+  )
 
   if (!client) {
     return (
@@ -128,8 +209,8 @@ export default function ClientDetail() {
           <PlaceholderSection title="Activity Timeline" />
         </div>
         <div className="col-span-1 flex flex-col gap-4">
-          <PlaceholderSection title="Linked Orders" />
-          <PlaceholderSection title="Documents" />
+          <LinkedOrdersSection orders={clientOrders} />
+          <DocumentsSection invoices={clientInvoices} />
         </div>
       </div>
 

@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Package, DollarSign, MapPin, Calendar, Tag, Pencil } from 'lucide-react'
-import { useOrders, useClients } from '../context/AppContext'
+import { useOrders, useClients, useInvoices } from '../context/AppContext'
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx'
 import StatusTracker from '../components/orders/StatusTracker.jsx'
+import AdvisoryStageTracker from '../components/orders/AdvisoryStageTracker.jsx'
 import NewOrderPanel from '../components/orders/NewOrderPanel.jsx'
+import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
 import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
+import { getInvoiceTrigger } from '../lib/advisoryInvoiceTriggers.js'
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -43,7 +46,10 @@ export default function OrderDetail() {
   const { id } = useParams()
   const { orders, updateOrder } = useOrders()
   const { clients } = useClients()
+  const { invoices, addInvoice } = useInvoices()
   const [editOpen, setEditOpen] = useState(false)
+  const [invoicePanelOpen, setInvoicePanelOpen] = useState(false)
+  const [invoicePrefill, setInvoicePrefill] = useState(null)
 
   const order = orders.find(o => o.id === id)
   const client = order ? clients.find(c => c.id === order.clientId) : null
@@ -65,6 +71,35 @@ export default function OrderDetail() {
       return Math.max(m, n)
     }, 0)
     return `ORD-${String(max + 1).padStart(3, '0')}`
+  }
+
+  function nextInvoiceNo() {
+    const max = invoices.reduce((m, inv) => {
+      const n = parseInt(inv.invoiceNo?.replace('INV-', '') || '0')
+      return Math.max(m, n)
+    }, 0)
+    return `INV-${String(max + 1).padStart(3, '0')}`
+  }
+
+  // Advances advisory_stage via updateOrder (current-or-next-only enforced by
+  // AdvisoryStageTracker itself). When that's an actual change, checks whether the new
+  // stage should prompt a draft invoice and, if so, opens NewInvoicePanel pre-filled —
+  // never creates or sends anything automatically.
+  async function handleAdvisoryStageClick(nextStage) {
+    const isChange = nextStage !== order.advisoryStage
+    await updateOrder(order.id, { ...order, advisoryStage: nextStage })
+    if (!isChange) return
+
+    const trigger = getInvoiceTrigger(order.engagementType, nextStage)
+    if (!trigger) return
+
+    setInvoicePrefill({
+      clientId: order.clientId,
+      orderId: order.id,
+      status: 'Draft',
+      lineItems: [{ description: trigger.description, qty: trigger.qty, unitPrice: trigger.unitPrice }],
+    })
+    setInvoicePanelOpen(true)
   }
 
   return (
@@ -125,6 +160,14 @@ export default function OrderDetail() {
         <StatusTracker status={order.status} />
       </div>
 
+      {/* Advisory stage tracker */}
+      <div className="bg-white border border-navy/8 px-8 py-5 mb-4">
+        <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">
+          Advisory Progress
+        </p>
+        <AdvisoryStageTracker stage={order.advisoryStage} onStageClick={handleAdvisoryStageClick} />
+      </div>
+
       {/* Details grid */}
       <div className="grid grid-cols-3 gap-4 mb-4">
         <div className="col-span-1 bg-white border border-navy/8 px-5 py-4">
@@ -170,6 +213,16 @@ export default function OrderDetail() {
         initialData={order}
         clients={clients}
         nextOrderId={nextOrderId()}
+      />
+
+      <NewInvoicePanel
+        open={invoicePanelOpen}
+        onClose={() => setInvoicePanelOpen(false)}
+        onSave={addInvoice}
+        clients={clients}
+        orders={orders}
+        nextInvoiceNo={nextInvoiceNo()}
+        prefillData={invoicePrefill}
       />
     </div>
   )

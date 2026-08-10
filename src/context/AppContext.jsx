@@ -38,32 +38,36 @@ function fromClient(data) {
 
 function toOrder(row) {
   return {
-    id:          row.id,
-    orderId:     row.order_id,
-    clientId:    row.client_id,
-    reference:   row.reference ?? '',
-    category:    row.category,
-    description: row.description ?? '',
-    value:       row.value,
-    origin:      row.origin ?? '',
-    status:      row.status,
-    deadline:    row.deadline,
-    createdAt:   row.created_at,
-    notes:       row.notes ?? '',
+    id:             row.id,
+    orderId:        row.order_id,
+    clientId:       row.client_id,
+    reference:      row.reference ?? '',
+    category:       row.category,
+    description:    row.description ?? '',
+    value:          row.value,
+    origin:         row.origin ?? '',
+    status:         row.status,
+    deadline:       row.deadline,
+    createdAt:      row.created_at,
+    notes:          row.notes ?? '',
+    engagementType: row.engagement_type,
+    advisoryStage:  row.advisory_stage,
   }
 }
 function fromOrder(data) {
   return {
-    order_id:    data.orderId,
-    client_id:   data.clientId,
-    reference:   data.reference ?? '',
-    category:    data.category,
-    description: data.description ?? '',
-    value:       data.value,
-    origin:      data.origin ?? '',
-    status:      data.status,
-    deadline:    data.deadline,
-    notes:       data.notes ?? '',
+    order_id:        data.orderId,
+    client_id:       data.clientId,
+    reference:       data.reference ?? '',
+    category:        data.category,
+    description:     data.description ?? '',
+    value:           data.value,
+    origin:          data.origin ?? '',
+    status:          data.status,
+    deadline:        data.deadline,
+    notes:           data.notes ?? '',
+    engagement_type: data.engagementType,
+    advisory_stage:  data.advisoryStage,
   }
 }
 

@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 
 const ORIGINS = ['Guangzhou', 'Shenzhen', 'Yiwu', 'Foshan', 'Dongguan', 'Hangzhou', 'Shanghai', 'Other']
 const STATUSES = ['Sourcing', 'Sampling', 'Production', 'QC', 'Shipped', 'Delivered', 'Cancelled']
+const ENGAGEMENT_TYPES = ['Full Mandate', 'Standalone']
 
 const EMPTY = {
   clientId: '',
@@ -14,6 +15,7 @@ const EMPTY = {
   status: 'Sourcing',
   deadline: '',
   notes: '',
+  engagementType: 'Full Mandate',
 }
 
 export default function NewOrderPanel({ open, onClose, onSave, initialData, clients, nextOrderId }) {
@@ -104,6 +106,25 @@ export default function NewOrderPanel({ open, onClose, onSave, initialData, clie
               </select>
             </Field>
           </div>
+
+          <Field label="Engagement Type">
+            <div className="flex flex-wrap gap-2">
+              {ENGAGEMENT_TYPES.map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => set('engagementType', t)}
+                  className={`px-3 py-1.5 text-xs font-body font-medium border transition-colors duration-150 ${
+                    form.engagementType === t
+                      ? 'bg-navy text-white border-navy'
+                      : 'bg-white text-slate border-slate/25 hover:border-navy/40'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </Field>
 
           <Field label="Product Category" required>
             <input
