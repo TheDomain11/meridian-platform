@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Send } from 'lucide-react'
 import { useClients, useOrders, useSuppliers } from '../../context/AppContext.jsx'
+import CostBadge from './CostBadge.jsx'
 
 async function executeAction(action, data, store) {
   if (!action || action === 'none' || action === 'query' || !data) return null
@@ -158,6 +159,11 @@ export default function AIShellBar() {
           disabled={loading}
           className="flex-1 bg-white/10 text-cream placeholder:text-cream/40 text-sm font-body px-4 py-2.5 focus:outline-none focus:bg-white/15 transition-colors duration-150 disabled:opacity-60"
         />
+        {/* Light backing chip — CostBadge's muted slate/45 text has no contrast directly
+            against this bar's navy background, unlike its other (light-background) uses. */}
+        <span className="flex-shrink-0 bg-cream px-1.5 py-1">
+          <CostBadge tier="sonnet-light" />
+        </span>
         <button
           type="submit"
           disabled={loading || !input.trim()}

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Sparkles, X, Send } from 'lucide-react'
 import { useAIContext } from './useAIContext.js'
 import { getSuggestedPrompts } from './suggestedPrompts.js'
+import CostBadge from './CostBadge.jsx'
 
 export default function AIAssistant() {
   const [open, setOpen] = useState(false)
@@ -136,23 +137,26 @@ export default function AIAssistant() {
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 px-4 py-4 border-t border-navy/10 flex-shrink-0">
-          <input
-            type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Ask Meridian AI…"
-            disabled={sending}
-            className="flex-1 px-3 py-2.5 bg-white border border-navy/10 text-sm font-body text-navy placeholder:text-slate/35 focus:outline-none focus:border-navy/30 disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="w-10 h-10 flex-shrink-0 bg-navy text-cream flex items-center justify-center disabled:opacity-40 transition-opacity duration-150"
-            aria-label="Send"
-          >
-            <Send size={15} strokeWidth={1.75} />
-          </button>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-1.5 px-4 py-4 border-t border-navy/10 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Ask Meridian AI…"
+              disabled={sending}
+              className="flex-1 px-3 py-2.5 bg-white border border-navy/10 text-sm font-body text-navy placeholder:text-slate/35 focus:outline-none focus:border-navy/30 disabled:opacity-60"
+            />
+            <button
+              type="submit"
+              disabled={sending || !input.trim()}
+              className="w-10 h-10 flex-shrink-0 bg-navy text-cream flex items-center justify-center disabled:opacity-40 transition-opacity duration-150"
+              aria-label="Send"
+            >
+              <Send size={15} strokeWidth={1.75} />
+            </button>
+          </div>
+          <CostBadge tier="sonnet-light" />
         </form>
       </div>
     </>
