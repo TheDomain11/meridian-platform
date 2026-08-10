@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Building2, Mail, Phone, MapPin, Tag, Pencil } from 'lucide-react'
-import { useClients, useOrders, useInvoices } from '../context/AppContext'
+import { ArrowLeft, Building2, Mail, Phone, MapPin, Tag, Pencil, Check } from 'lucide-react'
+import { useClients, useOrders, useInvoices, useDocuments } from '../context/AppContext'
 import StatusBadge from '../components/clients/StatusBadge.jsx'
 import AddClientPanel from '../components/clients/AddClientPanel.jsx'
 import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
@@ -75,27 +75,70 @@ function LinkedOrdersSection({ orders }) {
   )
 }
 
-function DocumentsSection({ invoices }) {
+function KindTag({ children }) {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 text-xs font-body font-medium border text-slate/55 border-slate/25">
+      {children}
+    </span>
+  )
+}
+
+// Combines invoices and documents (uploaded via OrderDetail's Documents section) into one
+// list, each row tagged with its kind (Invoice, or the document's doc_type) so the two are
+// distinguishable, sorted by date — invoice issueDate or document uploadedAt.
+function DocumentsSection({ invoices, documents }) {
+  const entries = useMemo(() => {
+    const invoiceEntries = invoices.map(inv => ({
+      key: `invoice-${inv.id}`,
+      date: inv.issueDate,
+      to: `/invoicing/${inv.id}`,
+      primary: inv.invoiceNo,
+      kind: 'Invoice',
+      badge: <InvoiceStatusBadge status={inv.status} />,
+      amount: formatCurrency(invoiceTotal(inv.lineItems)),
+    }))
+    const documentEntries = documents.map(doc => ({
+      key: `document-${doc.id}`,
+      date: doc.uploadedAt,
+      to: `/orders/${doc.orderId}`,
+      primary: doc.filename,
+      kind: doc.docType,
+      badge: doc.sentAt ? (
+        <span className="flex items-center gap-1 text-xs font-body text-slate/40">
+          <Check size={12} strokeWidth={1.75} />
+          Sent
+        </span>
+      ) : (
+        <span className="text-xs font-body text-slate/35">Not sent</span>
+      ),
+      amount: null,
+    }))
+    return [...invoiceEntries, ...documentEntries].sort((a, b) => new Date(b.date) - new Date(a.date))
+  }, [invoices, documents])
+
   return (
     <div className="bg-white border border-navy/8 p-5">
       <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">Documents</p>
-      {invoices.length === 0 ? (
-        <p className="text-sm text-slate/35 font-body">No invoices yet.</p>
+      {entries.length === 0 ? (
+        <p className="text-sm text-slate/35 font-body">No invoices or documents yet.</p>
       ) : (
         <div className="flex flex-col gap-1">
-          {invoices.map(inv => (
+          {entries.map(entry => (
             <Link
-              key={inv.id}
-              to={`/invoicing/${inv.id}`}
+              key={entry.key}
+              to={entry.to}
               className="flex items-center justify-between gap-3 py-2 border-b border-navy/6 last:border-0 hover:bg-navy/[0.025] transition-colors duration-100 -mx-1 px-1"
             >
               <div className="min-w-0">
-                <p className="text-sm font-body text-navy font-medium truncate">{inv.invoiceNo}</p>
-                <p className="text-xs font-body text-slate/50 truncate">{formatDate(inv.issueDate)}</p>
+                <p className="text-sm font-body text-navy font-medium truncate">{entry.primary}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <KindTag>{entry.kind}</KindTag>
+                  <p className="text-xs font-body text-slate/50 truncate">{formatDate(entry.date)}</p>
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <InvoiceStatusBadge status={inv.status} />
-                <span className="text-sm font-body text-slate tabular-nums">{formatCurrency(invoiceTotal(inv.lineItems))}</span>
+                {entry.badge}
+                {entry.amount && <span className="text-sm font-body text-slate tabular-nums">{entry.amount}</span>}
               </div>
             </Link>
           ))}
@@ -111,6 +154,7 @@ export default function ClientDetail() {
   const { clients, updateClient } = useClients()
   const { orders } = useOrders()
   const { invoices } = useInvoices()
+  const { documents } = useDocuments()
   const [editOpen, setEditOpen] = useState(false)
 
   const client = clients.find(c => c.id === id)
@@ -121,6 +165,10 @@ export default function ClientDetail() {
   const clientInvoices = useMemo(
     () => invoices.filter(i => i.clientId === id),
     [invoices, id]
+  )
+  const clientDocuments = useMemo(
+    () => documents.filter(d => d.clientId === id),
+    [documents, id]
   )
 
   if (!client) {
@@ -210,7 +258,7 @@ export default function ClientDetail() {
         </div>
         <div className="col-span-1 flex flex-col gap-4">
           <LinkedOrdersSection orders={clientOrders} />
-          <DocumentsSection invoices={clientInvoices} />
+          <DocumentsSection invoices={clientInvoices} documents={clientDocuments} />
         </div>
       </div>
 

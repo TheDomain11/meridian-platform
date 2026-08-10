@@ -173,6 +173,23 @@ function toEnquiry(row) {
   }
 }
 
+// documents has no fromDocument — every write goes through a service-role Netlify function
+// (upload-document.js, send-document-email.js), never a direct authenticated insert/update,
+// so there's no client-side payload to build for Supabase.
+function toDocument(row) {
+  return {
+    id:         row.id,
+    orderId:    row.order_id,
+    clientId:   row.client_id,
+    docType:    row.doc_type,
+    fileUrl:    row.file_url,
+    filename:   row.filename,
+    uploadedAt: row.uploaded_at,
+    sentAt:     row.sent_at,
+    sentTo:     row.sent_to,
+  }
+}
+
 function toMember(row) {
   return {
     id:         row.id,
@@ -212,6 +229,7 @@ export function AppProvider({ children }) {
   const [orders,    setOrders]    = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [invoices,  setInvoices]  = useState([])
+  const [documents, setDocuments] = useState([])
   const [team,      setTeam]      = useState([])
   const [loading,   setLoading]   = useState(true)
   const [error,     setError]     = useState(null)
@@ -226,22 +244,27 @@ export function AppProvider({ children }) {
         // `.is('deleted_at', null)` on every live fetch is the single chokepoint that keeps
         // soft-deleted rows out of the entire normal UI — all list/detail/dashboard/AI views
         // read from these arrays and never query Supabase directly.
-        const [c, o, s, i, t] = await Promise.all([
+        // documents has no deleted_at column (not part of the soft-delete/Trash system —
+        // see supabase/documents.sql), so it's fetched plain, unlike the 5 tables above.
+        const [c, o, s, i, d, t] = await Promise.all([
           supabase.from('clients').select('*').is('deleted_at', null).order('company'),
           supabase.from('orders').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
           supabase.from('suppliers').select('*').is('deleted_at', null).order('name'),
           supabase.from('invoices').select('*').is('deleted_at', null).order('issue_date', { ascending: false }),
+          supabase.from('documents').select('*').order('uploaded_at', { ascending: false }),
           supabase.from('team').select('*').is('deleted_at', null).order('name'),
         ])
         if (c.error) throw c.error
         if (o.error) throw o.error
         if (s.error) throw s.error
         if (i.error) throw i.error
+        if (d.error) throw d.error
         if (t.error) throw t.error
         setClients(c.data.map(toClient))
         setOrders(o.data.map(toOrder))
         setSuppliers(s.data.map(toSupplier))
         setInvoices(i.data.map(toInvoice))
+        setDocuments(d.data.map(toDocument))
         setTeam(t.data.map(toMember))
       } catch (err) {
         setError(err.message)
@@ -351,6 +374,19 @@ export function AppProvider({ children }) {
   // service-role Netlify function) — does not touch Supabase, so it has no RLS dependency.
   function patchInvoiceLocal(id, fields) {
     setInvoices(prev => prev.map(i => (i.id === id ? { ...i, ...fields } : i)))
+  }
+
+  // --- Documents ---
+  // All writes go through privileged server functions (upload-document.js,
+  // send-document-email.js) — these just sync local state after a server-side write already
+  // persisted, mirroring patchInvoiceLocal below.
+  function addDocumentLocal(row) {
+    const document = toDocument(row)
+    setDocuments(prev => [document, ...prev])
+    return document
+  }
+  function patchDocumentLocal(id, fields) {
+    setDocuments(prev => prev.map(d => (d.id === id ? { ...d, ...fields } : d)))
   }
 
   // --- Team ---
@@ -475,6 +511,7 @@ export function AppProvider({ children }) {
         orders,    addOrder,    updateOrder,
         suppliers, addSupplier, updateSupplier,
         invoices,  addInvoice,  updateInvoice, patchInvoiceLocal,
+        documents, addDocumentLocal, patchDocumentLocal,
         team,      addMember,   updateMember,
         trash, trashLoading, trashError, loadTrash, softDelete, restore, permanentDelete,
       }}
@@ -503,6 +540,10 @@ export const useSuppliers = () => {
 export const useInvoices = () => {
   const { invoices, addInvoice, updateInvoice, patchInvoiceLocal } = useContext(AppContext)
   return { invoices, addInvoice, updateInvoice, patchInvoiceLocal }
+}
+export const useDocuments = () => {
+  const { documents, addDocumentLocal, patchDocumentLocal } = useContext(AppContext)
+  return { documents, addDocumentLocal, patchDocumentLocal }
 }
 export const useTeam = () => {
   const { team, addMember, updateMember } = useContext(AppContext)

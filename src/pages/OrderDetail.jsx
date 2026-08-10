@@ -1,13 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Package, DollarSign, MapPin, Calendar, Tag, Pencil } from 'lucide-react'
-import { useOrders, useClients, useInvoices } from '../context/AppContext'
+import { ArrowLeft, Package, DollarSign, MapPin, Calendar, Tag, Pencil, Upload, Send, Check } from 'lucide-react'
+import { useOrders, useClients, useInvoices, useDocuments } from '../context/AppContext'
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx'
 import EngagementTimeline, { STEPS as ENGAGEMENT_STEPS } from '../components/orders/EngagementTimeline.jsx'
 import NewOrderPanel from '../components/orders/NewOrderPanel.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
 import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
 import { getInvoiceTrigger } from '../lib/advisoryInvoiceTriggers.js'
+import { blobToBase64 } from '../lib/invoiceStorage.js'
+import { uploadDocument, sendDocumentEmail } from '../lib/documentStorage.js'
+
+const DOC_TYPES = ['CSN', 'Engagement Letter', 'Compliance Advisory Note', 'Other']
 
 // Whenever advisory_stage moves onto one of these goods-equivalent stages, orders.status
 // is kept in sync so anything still reading the old field (Dashboard open-orders logic,
@@ -55,17 +59,136 @@ function PlaceholderSection({ title }) {
   )
 }
 
+// Upload Document (file picker + doc_type selector) plus a list of this order's documents,
+// each with its own "Send to Client" action. Uploading only stores the file — sending is a
+// separate, deliberate click, same confirm-before-send spirit as invoices; nothing here
+// auto-sends on upload.
+function OrderDocumentsSection({ documents, onUpload, onSend }) {
+  const [docType, setDocType] = useState('Other')
+  const [uploading, setUploading] = useState(false)
+  const [sendingId, setSendingId] = useState(null)
+  const [feedback, setFeedback] = useState(null)
+  const fileInputRef = useRef(null)
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file again later
+    if (!file) return
+
+    setUploading(true)
+    setFeedback(null)
+    try {
+      await onUpload(file, docType)
+      setFeedback({ type: 'success', text: 'Document uploaded.' })
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleSend(doc) {
+    setSendingId(doc.id)
+    setFeedback(null)
+    try {
+      const sentTo = await onSend(doc.id)
+      setFeedback({ type: 'success', text: `Sent to ${sentTo}.` })
+    } catch (err) {
+      setFeedback({ type: 'error', text: err.message })
+    } finally {
+      setSendingId(null)
+    }
+  }
+
+  return (
+    <div className="bg-white border border-navy/8 p-5">
+      <p className="text-xs font-body font-medium text-slate/55 uppercase tracking-wider mb-4">Documents</p>
+
+      <div className="flex items-center gap-2 mb-4">
+        <select
+          value={docType}
+          onChange={e => setDocType(e.target.value)}
+          className="input text-xs py-1.5 w-auto flex-shrink-0"
+        >
+          {DOC_TYPES.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-1.5 px-3 py-1.5 border border-navy/15 text-xs font-body font-medium text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150 disabled:opacity-50"
+        >
+          <Upload size={13} strokeWidth={1.75} />
+          {uploading ? 'Uploading…' : 'Upload Document'}
+        </button>
+        <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
+      </div>
+
+      {feedback && (
+        <p className={`text-xs font-body mb-3 ${feedback.type === 'error' ? 'text-red-700' : 'text-teal'}`}>
+          {feedback.text}
+        </p>
+      )}
+
+      {documents.length === 0 ? (
+        <p className="text-sm text-slate/35 font-body">No documents yet.</p>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {documents.map(doc => (
+            <div key={doc.id} className="flex items-center justify-between gap-2 py-2 border-b border-navy/6 last:border-0">
+              <div className="min-w-0">
+                <a
+                  href={doc.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-sm font-body text-navy font-medium truncate hover:text-teal transition-colors duration-150"
+                >
+                  {doc.filename}
+                </a>
+                <p className="text-xs font-body text-slate/50 truncate">
+                  {doc.docType} · {formatDate(doc.uploadedAt)}
+                  {doc.sentAt && ` · Sent ${formatDate(doc.sentAt)}`}
+                </p>
+              </div>
+              {doc.sentAt ? (
+                <span className="flex items-center gap-1 text-xs font-body text-slate/40 flex-shrink-0">
+                  <Check size={12} strokeWidth={1.75} />
+                  Sent
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSend(doc)}
+                  disabled={sendingId === doc.id}
+                  className="flex items-center gap-1 px-2.5 py-1 border border-navy/15 text-xs font-body text-slate hover:text-navy hover:border-navy/30 transition-colors duration-150 disabled:opacity-50 flex-shrink-0"
+                >
+                  <Send size={11} strokeWidth={1.75} />
+                  {sendingId === doc.id ? 'Sending…' : 'Send to Client'}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function OrderDetail() {
   const { id } = useParams()
   const { orders, updateOrder } = useOrders()
   const { clients } = useClients()
   const { invoices, addInvoice } = useInvoices()
+  const { documents, addDocumentLocal, patchDocumentLocal } = useDocuments()
   const [editOpen, setEditOpen] = useState(false)
   const [invoicePanelOpen, setInvoicePanelOpen] = useState(false)
   const [invoicePrefill, setInvoicePrefill] = useState(null)
 
   const order = orders.find(o => o.id === id)
   const client = order ? clients.find(c => c.id === order.clientId) : null
+  const orderDocuments = useMemo(() => documents.filter(d => d.orderId === id), [documents, id])
 
   if (!order) {
     return (
@@ -127,6 +250,30 @@ export default function OrderDetail() {
       lineItems: [{ description: trigger.description, qty: trigger.qty, unitPrice: trigger.unitPrice }],
     })
     setInvoicePanelOpen(true)
+  }
+
+  // Uploads a document via the privileged server function (upload-document.js) and syncs
+  // local state with the returned row — never touches Storage/the documents table directly.
+  async function handleDocumentUpload(file, docType) {
+    const fileBase64 = await blobToBase64(file)
+    const document = await uploadDocument({
+      fileBase64,
+      filename: file.name,
+      orderId: order.id,
+      clientId: order.clientId,
+      docType,
+      contentType: file.type || undefined,
+    })
+    addDocumentLocal(document)
+  }
+
+  // Sends a previously-uploaded document via the privileged server function
+  // (send-document-email.js) and syncs sentAt/sentTo locally. Returns the address it was
+  // sent to, for the caller's confirmation message.
+  async function handleDocumentSend(documentId) {
+    const document = await sendDocumentEmail(documentId)
+    patchDocumentLocal(documentId, { sentAt: document.sent_at, sentTo: document.sent_to })
+    return document.sent_to
   }
 
   return (
@@ -225,7 +372,11 @@ export default function OrderDetail() {
           <PlaceholderSection title="Activity Log" />
         </div>
         <div className="col-span-1 flex flex-col gap-4">
-          <PlaceholderSection title="Documents" />
+          <OrderDocumentsSection
+            documents={orderDocuments}
+            onUpload={handleDocumentUpload}
+            onSend={handleDocumentSend}
+          />
           <PlaceholderSection title="Team" />
         </div>
       </div>
