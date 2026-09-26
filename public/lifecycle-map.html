@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meridian Platform — Lifecycle Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+/* ===================================================================
+   BRAND TOKENS — kept identical to tailwind.config.js at the repo root.
+   If the platform's brand tokens ever change, update both places.
+   =================================================================== */
+:root{
+  --navy:#0C2340; --teal:#0A7E6B; --gold:#C4973B; --slate:#3D4F5F; --cream:#F4F1EB;
+  --surface:#FFFFFF; --border:rgba(12,35,64,.10); --border-soft:rgba(12,35,64,.06);
+  --text:#1B2836; --text-dim:#51606F; --text-faint:#8A96A3;
+  color-scheme: light;
+}
+*{box-sizing:border-box;}
+[hidden]{display:none!important;}
+html,body{margin:0;background:var(--cream);}
+body{
+  font-family:"DM Sans",system-ui,sans-serif; color:var(--text); background:var(--cream);
+  font-weight:400; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{font-family:"Libre Baskerville","Georgia",serif; font-weight:400;}
+.num,.chip-num,.doc-num{font-variant-numeric:tabular-nums; letter-spacing:.01em;}
+h1,h2,h3{text-wrap:balance; margin:0;}
+p{margin:0 0 .6em; line-height:1.6; color:var(--text-dim);}
+p:last-child{margin-bottom:0;}
+ul{margin:0; padding-left:1.05em; list-style:none;}
+li{margin-bottom:.65em; line-height:1.6; padding-left:.95em; position:relative; color:var(--text-dim);}
+li::before{content:"–"; position:absolute; left:0; color:var(--text-faint);}
+li:last-child{margin-bottom:0;}
+li strong{color:var(--text); font-weight:600;}
+a{color:var(--navy); text-decoration-color:var(--border);}
+
+.app{display:flex; min-height:100vh;}
+.sidebar{
+  width:250px; flex:0 0 250px; background:var(--surface); border-right:1px solid var(--border);
+  padding:0 16px calc(20px + env(safe-area-inset-bottom,0px));
+  position:sticky; top:0; align-self:flex-start; height:100vh; overflow-y:auto;
+}
+.back-link{
+  display:block; padding:14px 10px 12px; font-size:.72rem; color:var(--text-faint); text-decoration:none;
+  border-bottom:1px solid var(--border-soft); letter-spacing:.02em;
+}
+.back-link:hover{color:var(--teal);}
+.brand{padding:16px 10px 20px; margin-bottom:8px;}
+.brand .name{font-family:"Libre Baskerville",serif; font-size:1.3rem; font-weight:400; color:var(--navy); letter-spacing:.01em;}
+.brand .tag{font-size:.68rem; color:var(--text-faint); text-transform:uppercase; letter-spacing:.1em; margin-top:1px;}
+.nav-group-label{font-size:.65rem; text-transform:uppercase; letter-spacing:.1em; color:var(--text-faint); padding:18px 10px 5px; font-weight:600;}
+.nav-btn{
+  display:flex; align-items:baseline; gap:9px; width:100%; text-align:left; background:none; border:none;
+  border-left:2px solid transparent;
+  color:var(--text-dim); font-size:.83rem; padding:6px 9px; cursor:pointer; font-family:inherit;
+}
+.nav-btn .n{font-size:.7rem; color:var(--text-faint); flex:0 0 auto; font-variant-numeric:tabular-nums;}
+.nav-btn:hover{color:var(--text);}
+.nav-btn.active{border-left-color:var(--navy); color:var(--navy); font-weight:600;}
+.nav-btn.active .n{color:var(--navy);}
+
+.main{flex:1; min-width:0; padding:44px 48px 90px; max-width:900px;}
+.section{display:flex; flex-direction:column; gap:26px;}
+.eyebrow{
+  font-size:.7rem; text-transform:uppercase; letter-spacing:.12em; color:var(--text-faint); font-weight:600;
+}
+.section h1{font-size:2rem; color:var(--navy); font-weight:400; margin-top:3px;}
+.section .lede{font-size:1.02rem; color:var(--text-dim); max-width:620px; line-height:1.6;}
+
+.callout{
+  border-top:1px solid var(--navy); padding:16px 0 4px; max-width:640px;
+}
+.callout h3{font-size:.95rem; color:var(--navy); margin-bottom:8px; font-weight:600; font-family:"DM Sans",sans-serif;}
+.callout p{color:var(--text-dim); font-size:.92rem;}
+.callout strong{color:var(--text);}
+
+.card{
+  background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:20px 22px;
+}
+.card h3{
+  font-size:.7rem; color:var(--text-faint); text-transform:uppercase; letter-spacing:.09em; font-weight:600;
+  font-family:"DM Sans",sans-serif; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--border-soft);
+}
+.card p, .card li{font-size:.87rem;}
+.dim-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border);}
+.dim-grid .card{border:none; border-radius:0; background:var(--surface);}
+@media (max-width:720px){.dim-grid{grid-template-columns:1fr;}}
+
+.tag{
+  font-size:.7rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--navy);
+  font-family:"DM Sans",sans-serif;
+}
+.tag.attn{color:var(--gold);}
+
+.gate{
+  margin-top:14px; padding-top:12px; border-top:1px solid var(--border-soft);
+  font-size:.85rem; color:var(--text-dim);
+}
+.gate b{color:var(--gold); text-transform:uppercase; font-size:.7rem; letter-spacing:.06em;}
+
+.phase-header{display:flex; align-items:flex-start; gap:18px;}
+.phase-badge{
+  font-size:1.3rem; font-weight:600; color:var(--navy); font-variant-numeric:tabular-nums;
+  border:1px solid var(--border); border-radius:2px; width:48px; height:48px; display:flex; align-items:center;
+  justify-content:center; flex:0 0 auto;
+}
+.phase-title h1{font-size:1.6rem;}
+.phase-title .sub{font-size:.85rem; color:var(--text-dim); font-style:italic; margin-top:4px; max-width:560px; font-family:"DM Sans",sans-serif;}
+.doc-ref{font-size:.74rem; color:var(--text-faint); margin-top:6px; letter-spacing:.02em;}
+
+.timeline-strip{display:flex; gap:2px; overflow-x:auto; padding:4px 2px 16px;}
+.tl-chip{
+  flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer;
+  padding:8px 8px 0; border:none; background:none; font-family:inherit; min-width:64px;
+}
+.tl-num{
+  width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:.78rem; font-weight:600; border:1px solid var(--border); font-variant-numeric:tabular-nums;
+  color:var(--text-faint); background:var(--surface);
+}
+.tl-chip.st-gap .tl-num{border-color:var(--gold); color:var(--gold); border-width:1.5px;}
+.tl-chip.st-good .tl-num{color:var(--text-dim);}
+.tl-chip.st-mixed .tl-num{border-style:dashed; color:var(--text-dim);}
+.tl-label{font-size:.66rem; color:var(--text-faint); text-align:center; max-width:72px; line-height:1.25;}
+
+table{width:100%; border-collapse:collapse; font-size:.86rem;}
+th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--border-soft); vertical-align:top; color:var(--text-dim);}
+td:first-child, th:first-child{padding-left:16px;}
+th{color:var(--text-faint); font-weight:600; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em;}
+.table-wrap{overflow-x:auto; border:1px solid var(--border);}
+.table-wrap table{background:var(--surface);}
+.table-wrap .table-wrap{border:none;}
+
+.roadmap{display:flex; flex-direction:column; gap:0; border:1px solid var(--border);}
+.rm-row{display:grid; grid-template-columns:210px 1fr 230px; gap:0; border-bottom:1px solid var(--border-soft); background:var(--surface);}
+.rm-row:last-child{border-bottom:none;}
+.rm-cell{padding:12px 16px; font-size:.84rem; display:flex; align-items:center; color:var(--text-dim);}
+.rm-cell.name{color:var(--navy); font-weight:600;}
+.rm-cell.gate{font-size:.82rem;}
+.rm-cell.gate .g{color:var(--gold); font-weight:600; text-transform:uppercase; font-size:.68rem; letter-spacing:.05em; margin-right:6px;}
+@media (max-width:720px){
+  .rm-row{grid-template-columns:1fr; padding:10px 0;}
+  .rm-cell{padding:3px 16px;}
+  .rm-cell.name{padding-top:10px;}
+  .rm-cell.gate{padding-bottom:10px;}
+}
+
+footer.note{font-size:.78rem; color:var(--text-faint); border-top:1px solid var(--border-soft); padding-top:16px; margin-top:6px; line-height:1.6;}
+
+.mobile-nav{display:none;}
+@media (max-width:860px){
+  .app{flex-direction:column;}
+  .sidebar{display:none;}
+  .mobile-nav{
+    display:flex; gap:4px; overflow-x:auto; position:sticky; top:0; z-index:5; background:var(--surface);
+    border-bottom:1px solid var(--border);
+    padding:10px 14px;
+  }
+  .mobile-nav button{
+    flex:0 0 auto; background:none; color:var(--text-dim); border:1px solid var(--border); border-radius:99px;
+    padding:5px 12px; font-size:.76rem; font-family:inherit; cursor:pointer;
+  }
+  .mobile-nav button.active{border-color:var(--navy); color:var(--navy); font-weight:600;}
+  .mobile-back{
+    flex:0 0 auto; padding:5px 4px; font-size:.76rem; color:var(--text-faint); text-decoration:none; align-self:center;
+  }
+  .main{padding:26px 20px 60px; max-width:none;}
+  .phase-badge{width:40px; height:40px; font-size:1.1rem;}
+  .section h1, .phase-title h1{font-size:1.4rem;}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="sidebar" id="sidebar">
+    <a class="back-link" href="/dashboard">&larr; Back to Meridian Platform</a>
+    <div class="brand">
+      <div class="name">Meridian</div>
+      <div class="tag">Lifecycle Map</div>
+    </div>
+    <div class="nav-group-label">Overview</div>
+    <button class="nav-btn" data-target="overview"><span class="n">—</span><span>Map at a glance</span></button>
+    <div class="nav-group-label">Business phases</div>
+    <!-- phase nav buttons injected -->
+    <div id="phase-nav"></div>
+    <div class="nav-group-label">Cross-cutting</div>
+    <button class="nav-btn" data-target="protocols"><span class="n">C</span><span>Cross-cutting protocols</span></button>
+    <button class="nav-btn" data-target="skills"><span class="n">D</span><span>Skill &amp; hardcoding map</span></button>
+    <button class="nav-btn" data-target="roadmap"><span class="n">E</span><span>Automation roadmap</span></button>
+    <button class="nav-btn" data-target="routing"><span class="n">F</span><span>Model routing</span></button>
+  </nav>
+
+  <div class="mobile-nav" id="mobileNav"></div>
+
+  <main class="main" id="main">
+
+    <!-- OVERVIEW -->
+    <section class="section" data-section="overview">
+      <div>
+        <div class="eyebrow">End-to-end business lifecycle</div>
+        <h1>From first lead to relationship close</h1>
+        <p class="lede">Thirteen phases, four dimensions each: what happens, what governs it, what should be hardcoded vs. a Skill vs. a judgment call, and where a human approval is the only thing standing between this running itself and this running away.</p>
+      </div>
+
+      <div class="callout">
+        <h3>Is Sonnet enough for this?</h3>
+        <p>Yes. This map is standard structuring and drafting work, the exact tier Meridian's own working conventions already assign to Sonnet at default effort. The one place that convention already reserves for Opus with live search is <strong>Phase 8, Compliance Advisory</strong> — anywhere a regulation, tariff schedule, or market-access claim gets cited. See <a href="#" data-target="routing">Model routing</a> for the full breakdown.</p>
+      </div>
+
+      <div>
+        <h3 style="font-family:inherit;font-size:.95rem;color:var(--navy);margin-bottom:10px;">Where each phase stands today</h3>
+        <div class="timeline-strip" id="timelineStrip"></div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th style="width:36px;">#</th><th>Phase</th><th>Where it happens today</th></tr></thead>
+          <tbody id="glanceTable"></tbody>
+        </table>
+      </div>
+
+      <footer class="note">Reconstructed from the MI-2026-001 document set, the platform's stated 11-stage engagement timeline, and cross-references inside the documents themselves (the Fee Invoice cites "Phase 2" for the Engagement Letter and "Phase 6" for inspection). Phase 0 and Phase 12 extend the map before and after the transaction cycle.</footer>
+    </section>
+
+    <!-- PHASE SECTIONS injected here -->
+    <div id="phase-sections"></div>
+
+    <!-- PROTOCOLS -->
+    <section class="section" data-section="protocols" hidden>
+      <div>
+        <div class="eyebrow">Part C</div>
+        <h1>Cross-cutting protocols</h1>
+        <p class="lede">These apply at every phase, not just one — the standing rules a phase-by-phase view can make easy to lose track of.</p>
+      </div>
+      <div class="card"><ul id="protocolsList"></ul></div>
+    </section>
+
+    <!-- SKILLS -->
+    <section class="section" data-section="skills" hidden>
+      <div>
+        <div class="eyebrow">Part D</div>
+        <h1>Skill &amp; hardcoding architecture</h1>
+        <p class="lede">Four tiers, from deterministic lookups that need no AI judgment at all, up to decisions that should stay with George regardless of how mature the automation gets.</p>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th style="width:170px;">Category</th><th>Examples</th><th>Why</th></tr></thead>
+        <tbody id="skillsTable"></tbody>
+      </table></div>
+    </section>
+
+    <!-- ROADMAP -->
+    <section class="section" data-section="roadmap" hidden>
+      <div>
+        <div class="eyebrow">Part E</div>
+        <h1>Automation maturity roadmap</h1>
+        <p class="lede">Today, almost every phase is manually drafted per engagement, with no live pricing reference and one document (the CSN) never yet produced across three attempts. Target state below: everything drafts itself, George approves.</p>
+      </div>
+      <div class="roadmap" id="roadmapList"></div>
+      <div class="callout">
+        <h3>Gates that should survive even at full maturity</h3>
+        <p>Contract execution, every compliance-advisory determination reaching a client, and any payment or invoice leaving the platform. Not "until trusted" — <strong>permanently</strong>, because of what's at stake if the model is wrong once. Everything else is a candidate to eventually collapse into fully autonomous as draft quality proves itself over real cycles.</p>
+      </div>
+    </section>
+
+    <!-- ROUTING -->
+    <section class="section" data-section="routing" hidden>
+      <div>
+        <div class="eyebrow">Part F</div>
+        <h1>Model routing</h1>
+        <p class="lede">Which tasks need which model — and which "tasks" are actually approval gates that no model tier should be making unsupervised.</p>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th style="width:230px;">Task type</th><th style="width:160px;">Model</th><th>Why</th></tr></thead>
+        <tbody id="routingTable"></tbody>
+      </table></div>
+      <footer class="note" id="lastUpdatedNote"></footer>
+    </section>
+
+  </main>
+</div>
+
+<script>
+(function(){
+
+/* ===================================================================
+   CONTENT — this is the part to edit as the business changes.
+   Everything below the "RENDERING LOGIC" marker just reads these
+   arrays and builds the page; it should not need to change.
+
+   To update:
+   - Edit an existing phase object in PHASES, or add a new one
+     (bump every later "n" if inserting in the middle).
+   - status: "good" (documented/working), "gap" (missing/broken),
+     "mixed" (partially in place).
+   - skill items are [kind, label, text] tuples. kind is one of:
+     hard / skill / human / escalate / nohard / note — these drive
+     the little uppercase tag shown next to each item.
+   - Update LAST_UPDATED below whenever you touch this file.
+   =================================================================== */
+
+var LAST_UPDATED = "2026-09-26";
+
+var PHASES = [
+{n:0, name:"Market Presence &amp; Lead Generation", sub:"Continuous background activity, not tied to any one client.", where:"Website, WhatsApp Business, referrals &mdash; continuous", status:"mixed",
+ process:["Website (meridianinternational.io) &mdash; currently a coming-soon holding page with email capture; the full 6-page site exists but isn't live","Referral network &mdash; the ground-side SA contact, personal network","WhatsApp Business for informal inbound contact","Target segment: SA importers disrupted by the April 2025 SARS documentation tightening &mdash; the fastest-converting segment, not yet actively pursued"],
+ compliance:["Marketing copy stays inside the scope-containment rule: \"firm,\" never \"agency\" or \"practice,\" as the business descriptor","No claim about HK counsel review, banking activation, or platform capability that isn't yet real (binary vs. aspirational disclosure)","HK LPO ss.46&ndash;47 exposure means services read as \"coordination and structuring support,\" never legal or customs advice"],
+ skill:[["hard","Hardcode"," a disclosure-discipline lint pass over any new marketing copy before it ships"],["skill","Claude Skill · Sonnet"," routine website copy edits, holding-page updates, form-notification troubleshooting"],["human","Human judgment"," anything that changes how Meridian's legal capacity is described &mdash; HK counsel review is still outstanding"]],
+ automation:"Form-capture &rarr; CRM record &rarr; nurture sequence, zero involvement until a lead reaches Phase 1.",
+ gate:"None needed &mdash; pre-relationship, low-risk. Decide once (not per-lead) whether to enable holding-page autoresponders."},
+
+{n:1, name:"Enquiry Intake &amp; Qualification", sub:"Trigger: a message arrives via the enquiries form, email, or WhatsApp.", where:"enquiries table, Zoho Mail", status:"mixed",
+ process:["Enquiry lands in the enquiries table (product category, destination market, order value, timeline, existing suppliers, free-text message)","Qualification: genuine and actionable, vs. a test submission, routing check, or out-of-scope request (like Jackson's fruit-export enquiry)","Initial categorisation: Full Mandate candidate (&ge;USD 15,000 FOB) vs. standalone fee-menu candidate"],
+ compliance:["AI accuracy discipline applies from here on: no time-sensitive regulatory or market-access claim without a live-search citation","Any AI-drafted reply to a real enquiry is reviewed by George before sending &mdash; standing rule, not per-case"],
+ skill:[["hard","Hardcode"," enquiry triage (genuine/test/out-of-scope/mis-routed) as a deterministic platform filter &mdash; the inbound-email misclassification bug shows exactly what happens when this is left ad hoc"],["skill","Claude Skill · Sonnet"," the qualification reply and initial scoping questions"],["escalate","Escalate to Opus + search"," only if the enquiry itself contains a regulatory claim to verify first"]],
+ automation:"Enquiry auto-triaged, auto-replied with scoping questions, CRM record created, consultation slot proposed &mdash; fully autonomous target.",
+ gate:"The qualification reply itself, until AI accuracy discipline is proven per enquiry pattern &mdash; then lift the gate for that pattern specifically, not blanket."},
+
+{n:2, name:"Consultation", sub:"Informal, pre-document. Currently the first live human touchpoint.", where:"Call / WhatsApp", status:"good",
+ process:["Understand product, destination-market requirements, timeline, existing supplier relationship","Talk through the compliance angle for that product category up front &mdash; Meridian's actual differentiator, visible in how MI-2026-002 and -003 both surface the client's own compliance worry at this stage","Fee credit noted for consultation (USD 300, credited against commission or minimum fee)"],
+ compliance:["Capacity disclaimer applies from the first substantive conversation: commercial representative and advisory capacity only &mdash; not a law firm, customs broker, or declarant of record","No specific determination (an HS code, an NRCS outcome) should be stated as final here &mdash; it's scoping, not advisory"],
+ skill:[["human","Human-led, always"," relationship-building stays human; prep and follow-up around it are automatable"],["skill","Claude Skill · Sonnet"," pre-call briefing and post-call Consultation Summary Note drafting"]],
+ automation:"AI prepares the call brief and drafts the post-call summary for review; books the follow-up.",
+ gate:"The Consultation Summary Note itself &mdash; it's the factual basis every downstream document cites."},
+
+{n:3, name:"Client Sourcing Note (CSN) &mdash; Intake &amp; Scoping", sub:"Document 01 of 13. Currently the weakest point in the pipeline.", docref:"Doc 01 &middot; missing across MI-2026-001, -002 and -003", where:"Doc 01", status:"gap",
+ process:["Formal capture of product spec, quantity, target price, destination-market requirements, timeline","The document every later one (Engagement Letter's spec clause, Supply Agreement's spec clause) refers back to"],
+ compliance:["Spec accuracy matters directly to downstream compliance risk &mdash; MI-2026-001's spec changed mid-engagement (Ethernet dropped to meet budget) without a written re-confirmation at CSN stage, exactly the drift the Engagement Letter's change-control clause exists to prevent"],
+ skill:[["hard","Hardcode as a required-fields template"," this document has no reason to be freehand &mdash; a form generated from structured consultation data, not drafted from scratch"],["note","Highest-value hardcoding target in the whole pipeline"," it's the one document missing across all three case studies &mdash; never actually completed even once outside template design"]],
+ automation:"Fully automatic generation from the Phase 2 consultation summary + enquiry data &mdash; zero drafting required.",
+ gate:"George confirms the generated CSN matches what was actually discussed before it reaches the client &mdash; a quick review, not a redraft."},
+
+{n:4, name:"Engagement Letter &mdash; Mandate Confirmation", sub:"", docref:"Doc 02 of 13", where:"Doc 02", status:"gap",
+ process:["Formal terms: parties, scope of the six core services, product spec by reference to the CSN, fee basis, obligations of both sides, capacity disclaimer, governing law (HK SAR), arbitration above USD 50,000","No work commences under the mandate until signed and returned"],
+ compliance:["The fee-basis table must reflect current pricing &mdash; MI-2026-001's letter was generated under the pre-5-August flat 8%/USD 1,500 structure, exactly the pricing-drift failure mode to design against","Client's obligation to appoint their own SA-licensed customs broker is stated here &mdash; Meridian is never declarant of record"],
+ skill:[["hard","Hardcode with a live pricing reference"," the fee table pulls from a single source of truth (the current rate card) at generation time, never a stale baked-in copy &mdash; this directly fixes the superseded-pricing problem found in the case study"],["skill","Claude Skill · Sonnet"," everything else is boilerplate assembly, not judgment"]],
+ automation:"Auto-generated from CSN + current rate card, sent for e-signature automatically.",
+ gate:"George approves before send, at minimum until the pricing-reference fix is verified over several cycles &mdash; a wrong fee table is trust-damaging, not cosmetic."},
+
+{n:5, name:"Supplier Sourcing &amp; Verification", sub:"", docref:"Docs 03&ndash;04 of 13", where:"Docs 03&ndash;04", status:"good",
+ process:["Longlist candidate suppliers (Alibaba and direct PRD sourcing channels)","Verification: business registration checks, factory vs. trade-company distinction, track record, sometimes a video call or third-party report","PRD supplier-side verification is routed through independent multi-client firms (QIMA, SGS, Bureau Veritas) rather than George on the ground &mdash; a structural requirement tied to Z-visa scope, not a preference"],
+ compliance:["The verification standard applied to Shenzhen Rocketek and Qunhui in MI-2026-001 should be the baseline for every case, not reinvented per engagement"],
+ skill:[["skill","Claude Skill · Sonnet, fixed checklist"," registration, trade vs. factory status, track record, sample/reference checks hardcoded as required fields; the research to fill them is a good Skill task"],["human","Third-party firm engagement stays human-arranged"," a commercial relationship (QIMA/SGS/Bureau Veritas), not something AI initiates"]],
+ automation:"AI runs the longlist search and drafts the verification report from available data.",
+ gate:"The decision to commission (and pay for) third-party verification &mdash; a cost decision, not an AI call."},
+
+{n:6, name:"RFQ &amp; Negotiation", sub:"", docref:"Doc 05 of 13", where:"Doc 05", status:"good",
+ process:["RFQ issued to shortlisted suppliers; quotes compared on price, MOQ, lead time, payment terms, certification availability","Recommendation made, conditional on specific closing items (as with the three conditions attached to MI-2026-001's Supplier A recommendation)"],
+ compliance:["Recommendations should stay conditional and explicit about what's unresolved, not presented as a clean final answer while certification or price-validity items remain open"],
+ skill:[["skill","Claude Skill · Sonnet"," the comparison table is well-structured, repeatable analysis"],["human","Human judgment on the final call"," price and relationship trade-offs, even though the feeding analysis is automatable"]],
+ automation:"AI drafts the full comparison table and a reasoned recommendation.",
+ gate:"The supplier selection decision itself."},
+
+{n:7, name:"Contracting &mdash; Supply Agreement", sub:"", docref:"Doc 06 of 13", where:"Doc 06", status:"good",
+ process:["Cross-Border Supply Agreement: buyer/seller/Meridian-as-non-party-agent structure, payment split, certification as condition precedent, inspection rights, quality warranties"],
+ compliance:["Meridian's non-party-agent status must be explicit in every agreement &mdash; the structural fact keeping Meridian out of title-taking and the HK LPO exposure bounded to \"coordination\"","Certification conditions precedent (CE/FCC in MI-2026-001) should be drawn from the Phase 8 compliance advisory, not decided independently &mdash; sequencing matters even though the template numbers the advisory note later"],
+ skill:[["hard","Template-hardcoded skeleton, Opus-reviewed fill"," parties, non-party-agent clause, standard warranties fixed; commercial terms drafted by Skill but the whole contract gets an Opus+search pass before signature &mdash; exactly the category Meridian's own Sonnet/Opus convention already reserves"]],
+ automation:"AI assembles the agreement from the fixed template plus RFQ-stage commercial terms.",
+ gate:"George's sign-off before the agreement reaches either counterparty &mdash; probably never fully autonomous, given contract-execution risk."},
+
+{n:8, name:"Compliance Advisory", sub:"Document 11 by template number, but needs resolving before Phase 7 closes, since the Supply Agreement's certification conditions depend on it.", docref:"Doc 11 of 13 &middot; highest-stakes phase in the map", where:"Doc 11", status:"good",
+ process:["Tariff / HS code classification and verification against precedent","Product-category-specific determination: NRCS compulsory specifications (electronics/appliances), ICASA type-approval scope, DFFE/EPR registration status, SARS valuation risk, Trade Metrology labelling (apparel) &mdash; the mix depends on category","Critical-path risk identification (e.g. NRCS Letter of Authority timeline vs. shipment schedule)"],
+ compliance:["Every determination is advisory, never binding legal or customs advice &mdash; the capacity disclaimer is load-bearing here, not boilerplate","Any foreign precedent cited (US CBP, for the HS code correction) is explicitly persuasive-not-binding on SARS","The AI accuracy discipline rule is non-negotiable here specifically: regulations change, specification numbers get superseded, and a stale citation is the single most damaging failure mode in the business"],
+ skill:[["nohard","Do not hardcode the determinations themselves."," Hardcode only the per-category checklist of what must be checked (electronics&rarr;NRCS/ICASA/EPR; appliances&rarr;NRCS VC/SANS; apparel&rarr;SARS valuation/Trade Metrology) &mdash; that structure is stable even though the regulatory content behind it isn't"],["escalate","Escalate to Opus + live search, always"," this is precisely the category Meridian's own convention already reserves for Opus. Sonnet is not the right tier here regardless of how mature the rest of the pipeline gets."]],
+ automation:"The category-checklist lookup runs fully autonomously.",
+ gate:"Determinations are never sent to a client without George's review &mdash; specifically checking citation currency, not just conclusions. This gate should survive even at full platform maturity: the cost of a wrong compliance call (port detention, a seized shipment) is asymmetric to a slower review cycle."},
+
+{n:9, name:"Quality Inspection", sub:"", docref:"Docs 07&ndash;08 of 13", where:"Docs 07&ndash;08", status:"good",
+ process:["Inspection instruction brief issued to the third-party inspector (QIMA or equivalent) with the checkpoints that matter for this product","Inspection report received and reviewed against the Supply Agreement's quality warranties"],
+ compliance:["Commissioned through independent multi-client firms, not George on the ground &mdash; same structural reason as Phase 5"],
+ skill:[["skill","Claude Skill · Sonnet"," drafting the instruction brief from the Supply Agreement's spec and warranty clauses is template-fill work"],["human","Human judgment"," interpreting a failed or marginal result and deciding next steps (reject, renegotiate, accept with concession) is commercial judgment, not automatable past a draft recommendation"]],
+ automation:"Instruction brief auto-generated and sent; report intake and summary auto-drafted.",
+ gate:"Any result outside pre-agreed tolerance goes to George before a next-step decision reaches either party."},
+
+{n:10, name:"Customs &amp; Logistics Documentation", sub:"", docref:"Docs 09&ndash;10 of 13", where:"Docs 09&ndash;10", status:"good",
+ process:["Commercial invoice mapped to SARS's SC-CF-30 declaration fields","Packing list generated"],
+ compliance:["HS code and declared value must match the Phase 8 determination &mdash; a stale or wrong Phase 8 finding becomes a live customs-filing risk the moment it reaches this stage, so the two should never be decoupled in the platform's data model even though the template numbers them out of order","Client's own licensed customs broker remains declarant of record &mdash; Meridian prepares supporting documentation, doesn't file"],
+ skill:[["hard","Hardcode as a structured field-mapping template"," pulling HS code and valuation directly from the Phase 8 record rather than allowing manual re-entry &mdash; closes the exact gap that let MI-2026-001's invoice carry the wrong original HS code before correction"],["skill","Claude Skill · Sonnet"," document assembly once the field mapping is enforced"]],
+ automation:"Fully automatic generation once shipment quantities and final pricing are confirmed.",
+ gate:"An automated match-check (declared value/HS code vs. the compliance record) flags mismatches &mdash; lightweight, not a full George review, once the field-mapping fix is in place."},
+
+{n:11, name:"Billing &amp; Closeout", sub:"", docref:"Docs 12&ndash;13 of 13", where:"Docs 12&ndash;13", status:"gap",
+ process:["Fee invoice: commission calculation, minimum-fee comparison, consultation-fee credit, deposit already paid, third-party costs at cost, balance due","Engagement closeout note: what was delivered, outstanding items, final record"],
+ compliance:["Same pricing-currency requirement as Phase 4 &mdash; the invoice must calculate against the live rate card, not a copy of the (possibly already-stale) Engagement Letter fee table. MI-2026-001's Fee Invoice compounded the Engagement Letter's stale-pricing error, showing exactly how one Phase-4 mistake propagates forward untouched.","Third-party costs (NRCS/ICASA applications) invoiced separately at cost, no markup, per the Engagement Letter's own terms"],
+ skill:[["hard","Hardcode the calculation, sourced live"," commission %, minimum fee, credits as a formula against the current rate card, never hand-calculated or copied forward"],["skill","Claude Skill · Sonnet"," closeout note drafting from the full document trail"]],
+ automation:"Invoice auto-calculated and generated the moment FOB value is confirmed; closeout note auto-drafted at completion.",
+ gate:"George approves the invoice before send &mdash; money leaving the platform's control always warrants a human check, even once the calculation is trusted."},
+
+{n:12, name:"Post-Engagement Relationship Management", sub:"Not yet formalised anywhere in the current pipeline &mdash; today's map ends at Phase 11.", docref:"Not yet built", where:"Not yet formalised", status:"gap",
+ process:["<em>Recommended, not yet built:</em> structured check-in at a set interval after closeout (30/90 days) &mdash; repeat-order interest, referral ask, satisfaction check","CRM status: active &rarr; dormant &rarr; repeat client, retaining the client's history (products, suppliers used, compliance findings already resolved) so a repeat engagement doesn't restart Phases 3&ndash;8 from zero","Formal offboarding path for a client who won't return: stated data retention/deletion policy, final record archived"],
+ compliance:["A reused prior compliance determination (e.g. Protea's resolved HS code) should be re-verified for currency, not assumed still correct &mdash; regulations move; a citation has a shelf life","Data retention for a dormant or offboarded client currently has no stated policy &mdash; worth deciding deliberately rather than by default"],
+ skill:[["skill","Claude Skill · Sonnet"," check-in drafting and CRM status transitions"],["note","This entire phase is a gap, not a bottleneck"," there's no existing behaviour to fix, just a phase to design &mdash; the cheapest phase in the map to build well from scratch"]],
+ automation:"Fully autonomous check-in scheduling and drafting, CRM hygiene, repeat-engagement fast-path (skip re-sourcing for a recurring supplier/product, subject to compliance re-verification).",
+ gate:"Sending the check-in message itself, at least initially &mdash; a client hearing from Meridian unprompted is a trust-sensitive moment worth reviewing until the pattern is proven."}
+];
+
+var PROTOCOLS = [
+["Capacity disclaimer","Commercial representative and advisory capacity only; never a law firm, customs broker, or declarant of record. Should appear wherever compliance content reaches a client, not just in the Engagement Letter."],
+["Scope containment","“Firm,” never “agency” or “practice,” as the identity-level descriptor — consistent across website, platform, and every client-facing document."],
+["Binary vs. aspirational disclosure","State only what's currently real (banking status, platform capability, credentials). Applies to internal planning documents like this one as much as to client-facing copy."],
+["AI accuracy discipline","No time-sensitive regulatory or market-access claim without a live-search citation; George reviews AI-drafted client communications before send. Phase 8 depends on this most, but it isn't limited to that phase."],
+["Pricing-currency check","Every document that states a fee (Engagement Letter, Fee Invoice) calculates against the live rate card at generation time, never a static copy. This single fix would have prevented the one recurring error found across the case studies to date."],
+["Non-party-agent structure","Meridian never takes title to goods and is never a contracting party to the underlying supply transaction — what keeps the HK LPO exposure bounded, and should be explicit in every contract-adjacent document."],
+["Jurisdictional split","Contracting, invoicing, banking, and correspondence anchored to Hong Kong; PRD-side execution (verification, inspection) routed through independent third-party firms rather than George personally, because of Z-visa scope; SA-side customs filing always through the client's own licensed broker."]
+];
+
+var SKILLS_TABLE = [
+["hard","Hardcode","CSN required-fields form &middot; fee-table pull from live rate card &middot; HS-code/valuation field mapping into customs docs &middot; product-category&rarr;regulatory-checklist lookup &middot; enquiry triage filter","These are exactly the points where the case studies show drift or gaps today (missing CSN, stale pricing, an HS-code correction needed after the fact). Hardcoding removes the chance of recurrence &mdash; it's a lookup or a formula, not a judgment call."],
+["skill","Claude Skill, Sonnet default","Supplier verification reports &middot; RFQ comparison tables &middot; inspection instruction briefs &middot; closeout notes &middot; consultation prep/summary &middot; post-engagement check-ins &middot; marketing copy edits","Structured, repeatable drafting from well-defined inputs &mdash; exactly the tier Meridian's own convention already assigns to this class of work."],
+["escalate","Escalate to Opus + live search","Compliance Advisory determinations (Phase 8) &middot; the Supply Agreement's compliance-linked clauses (Phase 7) &middot; anything citing a regulation, tariff schedule, or market-access claim","Citation currency and accuracy carry real cost if wrong (port detention, a wrong legal-capacity claim). The one category where model tier should never be downgraded for speed."],
+["human","Human judgment, not automatable","Final supplier selection &middot; contract execution sign-off &middot; interpreting a failed inspection result &middot; the compliance-advisory review before it reaches a client &middot; invoice approval before send","AI can and should draft the recommendation — but the decision carries commercial, legal, or trust cost that stays with George regardless of automation maturity."]
+];
+
+var ROADMAP = [
+["Lead comes in","Fully autonomous","None"],
+["Qualification &amp; scoping reply","Fully autonomous (once trusted per-pattern)","None, once trusted"],
+["Consultation","Human-led (unchanged)","N/A"],
+["CSN generation","Fully autonomous","None"],
+["Engagement Letter","Auto-drafted","Send"],
+["Supplier sourcing &amp; verification","Auto-drafted","Commissioning paid verification"],
+["RFQ &amp; comparison","Auto-drafted","Supplier choice"],
+["Supply Agreement","Auto-assembled","Contract execution"],
+["Compliance Advisory","Auto-researched (Opus + search)","Every determination, always"],
+["Inspection brief &amp; report","Auto-drafted","Only on out-of-tolerance result"],
+["Customs documentation","Fully autonomous","Automated match-check only"],
+["Fee Invoice","Auto-calculated","Send"],
+["Closeout","Fully autonomous","None"],
+["Post-engagement check-in","Auto-drafted","Send, initially"]
+];
+
+var ROUTING = [
+["Document drafting/assembly, structured analysis, comparison tables, check-ins, marketing copy","Sonnet, default effort","Standard structuring and writing work — exactly what this page is, and exactly what Meridian's own convention already assigns to Sonnet."],
+["Compliance determinations, contract clauses tied to compliance, any regulatory or market-access claim","Opus, with web search enabled","Citation currency is the whole risk here; the one category Meridian's own convention already reserves for Opus."],
+["Final commercial/legal/trust decisions (supplier choice, contract sign-off, compliance sign-off, invoice send, verification spend)","Human (George) — not a model tier","These are approval gates, not drafting tasks. The question isn't which model — it's that no model should be making the call unsupervised."]
+];
+
+var STATUS_LABEL = {good:"Documented", gap:"Gap today", mixed:"Ongoing"};
+
+/* =====================  RENDERING LOGIC — shouldn't need edits  ===================== */
+
+function tagText(kind){
+  return {hard:"Hardcode", skill:"Skill", human:"Human", escalate:"Escalate", nohard:"Do not hardcode", note:"Note"}[kind] || kind;
+}
+function tagAttn(kind){
+  return (kind==="escalate" || kind==="nohard") ? " attn" : "";
+}
+
+var phaseNav = document.getElementById('phase-nav');
+var mobileNav = document.getElementById('mobileNav');
+var phaseSections = document.getElementById('phase-sections');
+var glanceTable = document.getElementById('glanceTable');
+var timelineStrip = document.getElementById('timelineStrip');
+
+// mobile "back to platform" pill, first in the mobile nav strip
+var mobileBack = document.createElement('a');
+mobileBack.className = 'mobile-back'; mobileBack.href = '/dashboard';
+mobileBack.innerHTML = '&larr; Platform';
+mobileNav.appendChild(mobileBack);
+
+PHASES.forEach(function(p){
+  // sidebar nav
+  var b = document.createElement('button');
+  b.className = 'nav-btn'; b.setAttribute('data-target','phase-'+p.n);
+  b.innerHTML = '<span class="n">'+String(p.n).padStart(2,'0')+'</span><span>'+p.name.replace(/&mdash;.*$/,'')+'</span>';
+  phaseNav.appendChild(b);
+
+  // mobile nav
+  var mb = document.createElement('button');
+  mb.setAttribute('data-target','phase-'+p.n);
+  mb.textContent = p.n+' · '+p.name.replace(/&amp;/g,'&').replace(/&mdash;.*$/,'').trim();
+  mobileNav.appendChild(mb);
+
+  // glance table row
+  var tr = document.createElement('tr');
+  tr.innerHTML = '<td class="num">'+p.n+'</td><td>'+p.name+'</td><td>'+p.where+'</td>';
+  glanceTable.appendChild(tr);
+
+  // timeline chip
+  var chip = document.createElement('button');
+  chip.className = 'tl-chip st-'+p.status; chip.setAttribute('data-target','phase-'+p.n);
+  chip.innerHTML = '<span class="tl-num">'+p.n+'</span><span class="tl-label">'+p.name.split(/&mdash;| \(/)[0]+'</span>';
+  timelineStrip.appendChild(chip);
+
+  // phase section
+  var sec = document.createElement('section');
+  sec.className = 'section'; sec.setAttribute('data-section','phase-'+p.n); sec.hidden = true;
+  var skillItems = p.skill.map(function(s){
+    return '<li><span class="tag'+tagAttn(s[0])+'">'+tagText(s[0])+'</span> <strong>'+s[1]+'</strong>'+s[2]+'</li>';
+  }).join('');
+  sec.innerHTML =
+    '<div class="phase-header">'+
+      '<div class="phase-badge">'+p.n+'</div>'+
+      '<div class="phase-title">'+
+        '<h1>'+p.name+'</h1>'+
+        (p.sub ? '<div class="sub">'+p.sub+'</div>' : '')+
+        (p.docref ? '<div class="doc-ref">'+p.docref+'</div>' : '')+
+      '</div>'+
+    '</div>'+
+    '<div class="dim-grid">'+
+      '<div class="card"><h3>Process</h3><ul>'+p.process.map(function(i){return '<li>'+i+'</li>';}).join('')+'</ul></div>'+
+      '<div class="card"><h3>Compliance protocol</h3><ul>'+p.compliance.map(function(i){return '<li>'+i+'</li>';}).join('')+'</ul></div>'+
+      '<div class="card"><h3>Skill / hardcoding</h3><ul>'+skillItems+'</ul></div>'+
+      '<div class="card"><h3>Automation opportunity</h3><p>'+p.automation+'</p><div class="gate"><b>Approval gate</b><br>'+p.gate+'</div></div>'+
+    '</div>';
+  phaseSections.appendChild(sec);
+});
+
+document.getElementById('protocolsList').innerHTML = PROTOCOLS.map(function(pr){
+  return '<li><strong>'+pr[0]+'</strong> &mdash; '+pr[1]+'</li>';
+}).join('');
+
+document.getElementById('skillsTable').innerHTML = SKILLS_TABLE.map(function(r){
+  return '<tr><td><span class="tag'+tagAttn(r[0])+'">'+tagText(r[0])+'</span></td><td>'+r[2]+'</td><td>'+r[3]+'</td></tr>';
+}).join('');
+
+document.getElementById('roadmapList').innerHTML = ROADMAP.map(function(r){
+  var isGate = r[2] !== 'None' && r[2] !== 'N/A';
+  return '<div class="rm-row"><div class="rm-cell name">'+r[0]+'</div><div class="rm-cell state">'+r[1]+'</div><div class="rm-cell gate">'+(isGate?'<span class="g">Approve</span>':'')+r[2]+'</div></div>';
+}).join('');
+
+document.getElementById('routingTable').innerHTML = ROUTING.map(function(r){
+  return '<tr><td>'+r[0]+'</td><td><strong>'+r[1]+'</strong></td><td>'+r[2]+'</td></tr>';
+}).join('');
+
+document.getElementById('lastUpdatedNote').textContent =
+  'This is a static reference page — its content lives directly in public/lifecycle-map.html (the PHASES / PROTOCOLS / SKILLS_TABLE / ROADMAP / ROUTING arrays near the top of the <script> block). Edit that file and redeploy whenever the business changes; there is no database behind this page. Last updated: ' + LAST_UPDATED + '.';
+
+// --- navigation ---
+var allSections = document.querySelectorAll('[data-section]');
+var allNavBtns = document.querySelectorAll('.nav-btn, .mobile-nav button, .tl-chip');
+
+function show(target){
+  allSections.forEach(function(s){ s.hidden = (s.getAttribute('data-section') !== target); });
+  allNavBtns.forEach(function(b){
+    if(b.getAttribute('data-target') === target){ b.classList.add('active'); }
+    else { b.classList.remove('active'); }
+  });
+  try{ window.scrollTo({top:0, behavior:'instant'}); }catch(e){ window.scrollTo(0,0); }
+  var main = document.getElementById('main'); if(main) main.scrollTop = 0;
+}
+
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('[data-target]');
+  if(!btn) return;
+  e.preventDefault();
+  show(btn.getAttribute('data-target'));
+});
+
+// deep link via bare hash token, e.g. #phase-8
+var initial = 'overview';
+var hash = (location.hash || '').replace('#','');
+if(hash && document.querySelector('[data-section="'+hash+'"]')){ initial = hash; }
+show(initial);
+
+})();
+</script>
+</body>
+</html>

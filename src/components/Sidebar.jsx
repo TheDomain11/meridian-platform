@@ -11,6 +11,7 @@ import {
   Inbox,
   Trash2,
   FolderOpen,
+  Map,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -22,7 +23,8 @@ const nav = [
   { to: '/invoicing', label: 'Invoicing', icon: FileText },
   { to: '/team', label: 'Team', icon: UserCog },
   { to: '/approvals', label: 'Approvals', icon: Inbox },
-  { to: '/documents.html', label: 'Documents', icon: FolderOpen },
+  { to: '/documents.html', label: 'Documents', icon: FolderOpen, reloadDocument: true },
+  { to: '/lifecycle-map.html', label: 'Lifecycle Map', icon: Map, reloadDocument: true },
 ]
 
 const bottom = [
@@ -48,10 +50,11 @@ export default function Sidebar() {
 
       {/* Primary nav */}
       <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5">
-        {nav.map(({ to, label, icon: Icon }) => (
+        {nav.map(({ to, label, icon: Icon, reloadDocument }) => (
           <NavLink
             key={to}
             to={to}
+            reloadDocument={reloadDocument}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2 rounded text-sm font-body transition-colors duration-150 ${
                 isActive
