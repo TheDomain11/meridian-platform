@@ -12,11 +12,18 @@ const {
   PageNumber, ShadingType, convertInchesToTwip, UnderlineType, TabStopType
 } = docx;
 
+// Edition Two (Sept 2026), from the Meridian design system tokens: ink, bronze and paper.
+// Key names are kept from the original template so every document builder keeps working:
+// GOLD now carries bronze (the one accent) and TEAL carries the status green used for
+// "Verified". SLATE is ink-muted, STONE a lighter muted tone for small print.
 const COLORS = {
-  INK: "0C2340", GOLD: "C4973B", SLATE: "4A5568", STONE: "8A9BAE",
-  BORDER: "D6D1C7", WHITE: "FFFFFF", LIGHT_BG: "F7F6F3", TEAL: "0A7E6B"
+  INK: "1F1B17", GOLD: "86632F", BRONZE: "86632F", SLATE: "57524B", STONE: "6E675D",
+  BORDER: "DFDBD3", WHITE: "FFFFFF", LIGHT_BG: "FAF9F6", TEAL: "2E6A5E"
 };
-const FONTS = { SERIF: "Georgia", SANS: "Arial", MONO: "Courier New" };
+// EB Garamond is the brand serif, but a .docx only renders fonts installed on the reader's
+// machine. "Garamond" ships with Microsoft Office on Windows and Mac, so it is the closest
+// safe choice; Word falls back to its own serif if it is missing.
+const FONTS = { SERIF: "Garamond", SANS: "Arial", MONO: "Courier New" };
 
 const U = 80;
 const g = (n) => n * U; // spacing grid unit — 4pt per unit, never hardcode raw twips elsewhere
@@ -40,7 +47,7 @@ function meta(l, v) {
   return new Paragraph({ spacing: { before: 0, after: g(2) },
     tabStops: [{ type: TabStopType.LEFT, position: convertInchesToTwip(1.5) }],
     children: [
-      new TextRun({ text: l.toUpperCase(), font: FONTS.SANS, size: 13, color: COLORS.STONE, characterSpacing: 10 }),
+      new TextRun({ text: l, font: FONTS.SANS, size: 14, color: COLORS.STONE }),
       new TextRun({ text: "\t" }),
       new TextRun({ text: v, font: FONTS.SANS, size: 16, color: COLORS.INK }),
     ] });
@@ -51,7 +58,7 @@ function section(num, title) {
     children: [
       new TextRun({ text: num, font: FONTS.MONO, size: 15, color: COLORS.GOLD }),
       new TextRun({ text: "    ", font: FONTS.SANS, size: 15 }),
-      new TextRun({ text: title.toUpperCase(), font: FONTS.SANS, size: 14, color: COLORS.SLATE, characterSpacing: 90, bold: true }),
+      new TextRun({ text: title, font: FONTS.SERIF, size: 24, color: COLORS.INK }),
     ] });
 }
 function subHead(t) {
@@ -182,7 +189,7 @@ function buildFooter(docRef) {
   return new Footer({ children: [
     rule(COLORS.BORDER, 2, 0, 2),
     new Paragraph({ spacing:{before:0,after:g(1)}, children:[new TextRun({
-      text:"Meridian Capital Holdings Limited (trading as Meridian International) acts in a commercial representative and advisory capacity only. It is not a law firm and does not provide legal, customs, or tax advice.",
+      text:"Meridian Capital Holdings Limited, trading as Meridian International, provides commercial and compliance support. It is not a law firm and does not provide legal, customs brokerage or tax advice.",
       font:FONTS.SANS, size:13, color:COLORS.STONE, italics:true })] }),
     new Paragraph({ children: [
       new TextRun({ text: docRef + "  ·  Page ", font:FONTS.SANS, size:13, color:COLORS.STONE }),

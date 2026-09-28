@@ -1,4 +1,6 @@
 // Drop the real key into the Netlify site's environment variables as ANTHROPIC_API_KEY.
+const { MERIDIAN_CONTEXT, MERIDIAN_VOICE } = require('./lib/meridian-voice.js')
+
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 if (!ANTHROPIC_API_KEY) throw new Error('Missing required environment variable: ANTHROPIC_API_KEY')
 const MODEL = 'claude-sonnet-4-6'
@@ -16,11 +18,17 @@ function buildSystemPrompt(context) {
   const module = context?.module || 'Dashboard'
   const entityBlock = describeEntity(context?.entity)
 
-  return `You are Meridian AI, an assistant embedded directly in the Meridian Platform — the internal operating system for Meridian International, a B2B China sourcing and procurement agency. Meridian sources factories, negotiates pricing, and manages quality control and logistics on behalf of B2B clients on a commission basis — it does not hold inventory itself. The founder and primary user is George.
+  return `You are Meridian AI, the assistant inside Meridian Platform. The founder and primary user is George.
+
+${MERIDIAN_CONTEXT}
 
 The user is currently on the **${module}** module of the platform.${entityBlock}
 
-Be concise, professional, and practical — this is a busy operator's internal tool, not a general chatbot. When asked to draft an email or message, write ready-to-send copy with no placeholders left for the user to fill in unless information is genuinely missing. When asked about specific data (orders, clients, invoices, suppliers), only use what's provided in this context — if you don't have the information, say so plainly rather than guessing or inventing figures.`
+Be concise, professional, and practical — this is a busy operator's internal tool, not a general chatbot. When asked to draft an email or message, write ready-to-send copy with no placeholders left for the user to fill in unless information is genuinely missing. When asked about specific data (orders, clients, invoices, suppliers), only use what's provided in this context — if you don't have the information, say so plainly rather than guessing or inventing figures.
+
+Any email, message or client-facing copy you draft must follow the house voice below. Your own replies to George can be brief and direct.
+
+${MERIDIAN_VOICE}`
 }
 
 exports.handler = async (event) => {

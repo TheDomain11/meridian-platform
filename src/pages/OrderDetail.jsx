@@ -3,7 +3,8 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Package, DollarSign, MapPin, Calendar, Tag, Pencil, Upload, Send, Check } from 'lucide-react'
 import { useOrders, useClients, useInvoices, useDocuments } from '../context/AppContext'
 import OrderStatusBadge from '../components/orders/OrderStatusBadge.jsx'
-import EngagementTimeline, { STEPS as ENGAGEMENT_STEPS } from '../components/orders/EngagementTimeline.jsx'
+import EngagementTimeline from '../components/orders/EngagementTimeline.jsx'
+import { stepsFor } from '../lib/engagements.js'
 import NewOrderPanel from '../components/orders/NewOrderPanel.jsx'
 import NewInvoicePanel from '../components/invoicing/NewInvoicePanel.jsx'
 import DeleteRecordControl from '../components/DeleteRecordControl.jsx'
@@ -218,8 +219,8 @@ export default function OrderDetail() {
   }
 
   // Moves advisory_stage one step at a time in either direction via updateOrder
-  // (current-or-adjacent-only enforced by EngagementTimeline itself for Full Mandate;
-  // Standalone's Mark Complete always targets 'Delivered' directly) — going back a step
+  // (current-or-adjacent-only enforced by EngagementTimeline itself for Files and Full
+  // Mandates; a legacy Standalone order's Mark Complete targets 'Delivered' directly) — going back a step
   // lets a mistake be corrected without the Edit panel. Whenever the new stage is one of
   // the goods-equivalent stages, status is kept in sync in the same write, regardless of
   // direction — that's a pure data-consistency rule, not a business trigger. Only an actual
@@ -230,7 +231,8 @@ export default function OrderDetail() {
   async function handleStageClick(nextStage) {
     if (nextStage === order.advisoryStage) return
 
-    const isForward = ENGAGEMENT_STEPS.indexOf(nextStage) > ENGAGEMENT_STEPS.indexOf(order.advisoryStage)
+    const steps = stepsFor(order.engagementType)
+    const isForward = steps.indexOf(nextStage) > steps.indexOf(order.advisoryStage)
     const syncedStatus = GOODS_STATUS_BY_STAGE[nextStage]
 
     await updateOrder(order.id, {

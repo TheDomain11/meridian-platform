@@ -1,28 +1,23 @@
 import { Check } from 'lucide-react'
 import AdvisoryStageBadge from './AdvisoryStageBadge.jsx'
+import { stepsFor, stepLabel } from '../../lib/engagements.js'
 
-// The single, merged linear sequence for a Full Mandate engagement — advisory-only stages
-// (Consultation, Engagement Letter, Contract, Compliance Review) interleaved with the
-// goods-movement stages that used to live on their own separate StatusTracker block
-// (Supplier Sourcing & Verification, Sampling, Production, Inspection / QC, Shipped,
-// Delivered). One timeline, not two trackers that could silently disagree with each other.
-export const STEPS = [
-  'Consultation', 'Engagement Letter', 'Supplier Sourcing & Verification',
-  'RFQ & Negotiation', 'Sampling', 'Contract', 'Compliance Review',
-  'Production', 'Inspection / QC', 'Shipped', 'Delivered',
-]
+// Stage sequences live in src/lib/engagements.js: the 11-stage sequence for a Full
+// Mandate (advisory stages interleaved with goods-movement stages) and the 4-stage
+// sequence for a Meridian File. Re-exported here for existing importers.
+export { MANDATE_STEPS as STEPS } from '../../lib/engagements.js'
 
 // Mirrors StatusTracker's/the old AdvisoryStageTracker's index-based done/active/pending
 // logic and visual style. onStageClick (optional) makes the dots interactive: only the
 // current stage and its immediate neighbors (one back, one forward) are clickable — one
 // step at a time in either direction, so a mistake can be corrected without opening the
 // Edit panel, but you still can't jump straight to an arbitrary stage through this UI.
-function FullMandateTimeline({ stage, onStageClick }) {
-  const currentIdx = STEPS.indexOf(stage)
+function LinearTimeline({ steps, engagementType, stage, onStageClick }) {
+  const currentIdx = steps.indexOf(stage)
 
   return (
     <div className="flex items-start w-full py-2">
-      {STEPS.map((step, i) => {
+      {steps.map((step, i) => {
         const done = i < currentIdx
         const active = i === currentIdx
         const clickable = !!onStageClick && Math.abs(i - currentIdx) <= 1
@@ -38,7 +33,7 @@ function FullMandateTimeline({ stage, onStageClick }) {
               />
             )}
             {/* Right connector */}
-            {i < STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <div
                 className={`absolute top-[5px] left-1/2 right-0 h-px ${
                   done ? 'bg-navy' : 'bg-slate/15'
@@ -50,7 +45,7 @@ function FullMandateTimeline({ stage, onStageClick }) {
               type="button"
               onClick={() => clickable && onStageClick(step)}
               disabled={!clickable}
-              aria-label={`Engagement stage: ${step}`}
+              aria-label={`Engagement stage: ${stepLabel(engagementType, step)}`}
               className={`relative z-10 w-2.5 h-2.5 rounded-full border-2 mb-2 p-0 ${
                 done || active
                   ? 'bg-navy border-navy'
@@ -67,7 +62,7 @@ function FullMandateTimeline({ stage, onStageClick }) {
                   : 'text-slate/30'
               }`}
             >
-              {step}
+              {stepLabel(engagementType, step)}
             </span>
           </div>
         )
@@ -76,9 +71,8 @@ function FullMandateTimeline({ stage, onStageClick }) {
   )
 }
 
-// A Standalone engagement is one purchased deliverable, not an 11-step journey — showing
-// Sourcing/Sampling/Production/Shipped stages that will never apply to it is exactly the
-// confusion this merge is fixing. Just the current stage and a way to close it out.
+// A legacy 'Standalone' order is one purchased deliverable with no stage history worth
+// showing: just the current stage and a way to close it out.
 function StandaloneStatusCard({ stage, onMarkComplete }) {
   const isComplete = stage === 'Delivered'
 
@@ -107,9 +101,8 @@ function StandaloneStatusCard({ stage, onMarkComplete }) {
   )
 }
 
-// Replaces the old separate goods StatusTracker + advisory AdvisoryStageTracker blocks on
-// OrderDetail with one engagement-type-aware view: the full linear timeline for a Full
-// Mandate order, or a single status card for a Standalone one.
+// One engagement-type-aware view: the 11-stage timeline for a Full Mandate, the 4-stage
+// timeline for a Meridian File, or a single status card for a legacy Standalone order.
 export default function EngagementTimeline({ engagementType, stage, onStageClick }) {
   if (engagementType === 'Standalone') {
     return (
@@ -120,5 +113,12 @@ export default function EngagementTimeline({ engagementType, stage, onStageClick
     )
   }
 
-  return <FullMandateTimeline stage={stage} onStageClick={onStageClick} />
+  return (
+    <LinearTimeline
+      steps={stepsFor(engagementType)}
+      engagementType={engagementType}
+      stage={stage}
+      onStageClick={onStageClick}
+    />
+  )
 }

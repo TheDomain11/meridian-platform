@@ -194,7 +194,7 @@ exports.handler = async (event) => {
       await sendResendEmail({
         to: data.email,
         subject: 'Enquiry received — Meridian International',
-        text: `Dear ${data.name},\n\nThank you for your enquiry. Meridian responds to all enquiries within one business day (China Standard Time, UTC+8). Where an enquiry is suitable for a Meridian engagement, a structured consultation will be proposed as the next step.\n\nKind regards,\nMeridian International`,
+        text: `Dear ${data.name},\n\nThank you for your enquiry. I have received it and will reply within one business day (China Standard Time, UTC+8).\n\nMy reply will set out which Meridian File fits your order and its fixed fee. If you already have the supplier's full company name, a proforma invoice or a product specification, reply to this email with them and I will look at them before we speak.\n\nNothing is charged until you sign an engagement letter.\n\nKind regards,\nGeorge Skordi\nMeridian International`,
       })
     } catch (emailErr) {
       console.error('[submit-enquiry] Resend send failed:', emailErr)

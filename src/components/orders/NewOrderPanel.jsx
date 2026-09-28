@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { ENGAGEMENT_TYPES, DEFAULT_ENGAGEMENT_TYPE, FILE_TIERS, stepsFor } from '../../lib/engagements.js'
 
 const ORIGINS = ['Guangzhou', 'Shenzhen', 'Yiwu', 'Foshan', 'Dongguan', 'Hangzhou', 'Shanghai', 'Other']
 const STATUSES = ['Sourcing', 'Sampling', 'Production', 'QC', 'Shipped', 'Delivered', 'Cancelled']
-const ENGAGEMENT_TYPES = ['Full Mandate', 'Standalone']
 
 const EMPTY = {
   clientId: '',
@@ -15,7 +15,7 @@ const EMPTY = {
   status: 'Sourcing',
   deadline: '',
   notes: '',
-  engagementType: 'Full Mandate',
+  engagementType: DEFAULT_ENGAGEMENT_TYPE,
 }
 
 export default function NewOrderPanel({ open, onClose, onSave, initialData, clients, nextOrderId }) {
@@ -38,7 +38,14 @@ export default function NewOrderPanel({ open, onClose, onSave, initialData, clie
   function handleSubmit(e) {
     e.preventDefault()
     if (!form.clientId || !form.category.trim()) return
-    onSave({ ...form, value: parseFloat(form.value) || 0 })
+    // Switching an order to a different engagement type can leave it on a stage the new
+    // type doesn't have (e.g. a Full Mandate on 'Sampling' changed to a File). Reset to
+    // the start of the new sequence rather than saving a stage the timeline can't show.
+    const steps = stepsFor(form.engagementType)
+    const advisoryStage = form.advisoryStage && !steps.includes(form.advisoryStage)
+      ? steps[0]
+      : form.advisoryStage
+    onSave({ ...form, ...(advisoryStage ? { advisoryStage } : {}), value: parseFloat(form.value) || 0 })
     onClose()
   }
 
@@ -124,6 +131,13 @@ export default function NewOrderPanel({ open, onClose, onSave, initialData, clie
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs font-body text-slate/55">
+              {FILE_TIERS[form.engagementType]
+                ? `USD ${FILE_TIERS[form.engagementType].fee.toLocaleString('en-US')} fixed fee, 50% on signature and 50% on delivery. ${FILE_TIERS[form.engagementType].blurb}.`
+                : form.engagementType === 'Full Mandate'
+                ? 'Commission on FOB value, USD 950 minimum. For orders of USD 15,000 FOB and above.'
+                : 'Legacy engagement type. New orders use a File tier or the Full Mandate.'}
+            </p>
           </Field>
 
           <Field label="Product Category" required>

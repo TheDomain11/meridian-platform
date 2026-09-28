@@ -64,7 +64,7 @@ function LinkedOrdersSection({ orders }) {
                 <p className="text-xs font-body text-slate/50 truncate">{order.category}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <AdvisoryStageBadge stage={order.advisoryStage} />
+                <AdvisoryStageBadge stage={order.advisoryStage} engagementType={order.engagementType} />
                 <span className="text-sm font-body text-slate tabular-nums">{formatCurrency(order.value)}</span>
               </div>
             </Link>

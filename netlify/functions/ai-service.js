@@ -5,9 +5,14 @@ if (!ANTHROPIC_API_KEY) throw new Error('Missing required environment variable: 
 const AI_PROVIDER = process.env.AI_PROVIDER || 'claude'
 const MODEL = 'claude-sonnet-4-6'
 
-const MERIDIAN_CONTEXT = `You are the AI engine behind Meridian Platform, the internal operating system for Meridian International — a Hong Kong-registered China sourcing and procurement agency. The owner, George, holds both an LLB and an LLM (dual legal qualifications) and is based in Guangzhou. Meridian operates on a commission-only basis: it sources factories, negotiates pricing, and manages quality control and logistics on behalf of B2B clients — it never holds inventory itself. Target markets are South Africa, the EU, and the UK.
+// Business context and house voice live in one module so the website, platform and every
+// AI feature describe the firm the same way. See lib/meridian-voice.js.
+const { MERIDIAN_CONTEXT, MERIDIAN_VOICE, voiceIssues, rewritePrompt } = require('./lib/meridian-voice.js')
 
-When drafting any communication, write in first person as George: professional, specific, and concrete — reference the actual details you've been given. Never use generic corporate language, vague filler, or placeholder brackets left for someone to fill in.`
+// Drafting features (anything a client might read) get the context plus the voice.
+const DRAFTING_CONTEXT = `${MERIDIAN_CONTEXT}
+
+${MERIDIAN_VOICE}`
 
 function stripMarkdownFences(text) {
   return text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim()
@@ -48,6 +53,26 @@ async function callClaude(systemPrompt, userMessage, maxTokens = 1024) {
   return result.content?.[0]?.text ?? ''
 }
 
+// One corrective pass when a draft slips back into generic assistant phrasing. Costs one
+// extra call only when voiceIssues() finds something; if the rewrite fails or comes back
+// empty, the original draft is kept, because a draft in the wrong voice is still better
+// than no draft.
+async function enforceVoice(draft) {
+  const issues = voiceIssues(draft)
+  if (!draft || issues.length === 0) return draft
+  try {
+    const fixed = await callClaude(
+      rewritePrompt(),
+      `Problems found: ${issues.join('; ')}\n\nDraft:\n${draft}`,
+      1024,
+    )
+    return fixed.trim() || draft
+  } catch (err) {
+    console.error('[ai-service] voice rewrite failed:', err)
+    return draft
+  }
+}
+
 // ── Feature handlers ──────────────────────────────────────────────────────────
 // Each returns { result, action, data }. ai-service.js is the only place in the
 // platform that talks to the AI provider — callers never call Claude directly.
@@ -55,13 +80,13 @@ async function callClaude(systemPrompt, userMessage, maxTokens = 1024) {
 async function emailProcess(payload) {
   const { fromName = '', fromEmail = '', subject = '', bodyText = '' } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${DRAFTING_CONTEXT}
 
 You are triaging an inbound email. Do all of the following:
 1. Classify the intent as exactly one of: NEW_ENQUIRY, RFQ, STATUS_UPDATE, GENERAL
 2. Extract the sender's name, company (if mentioned or reasonably inferable), product interest, and budget (if mentioned)
 3. Write a one-line summary of the enquiry
-4. Draft a professional reply in George's voice, signed "George"
+4. Draft a reply in the house voice, signed "George"
 
 Respond with ONLY a JSON object — no markdown fences, no commentary — in exactly this shape:
 {
@@ -86,6 +111,7 @@ Respond with ONLY a JSON object — no markdown fences, no commentary — in exa
     summary: subject || 'Inbound email could not be auto-summarized.',
     draftResponse: '',
   })
+  result.draftResponse = await enforceVoice(result.draftResponse)
 
   return { result, action: null, data: null }
 }
@@ -93,9 +119,9 @@ Respond with ONLY a JSON object — no markdown fences, no commentary — in exa
 async function emailReply(payload) {
   const { fromName = '', fromEmail = '', subject = '', bodyText = '', instruction = '' } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${DRAFTING_CONTEXT}
 
-Below the line is the email you're replying to, plus any extra instruction from George about how to handle it. Draft a professional reply in George's voice, signed "George". Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "draftResponse": string }`
+Below the line is the email you're replying to, plus any extra instruction from George about how to handle it. Draft a reply in the house voice, signed "George". Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "draftResponse": string }`
 
   const userMessage = `From: ${fromName} <${fromEmail}>\nSubject: ${subject}\n\n${bodyText}${
     instruction ? `\n\n---\nGeorge's instruction for this reply: ${instruction}` : ''
@@ -103,6 +129,7 @@ Below the line is the email you're replying to, plus any extra instruction from 
 
   const raw = await callClaude(systemPrompt, userMessage, 1024)
   const result = safeParseJson(raw, { draftResponse: '' })
+  result.draftResponse = await enforceVoice(result.draftResponse)
   return { result, action: null, data: null }
 }
 
@@ -135,13 +162,14 @@ Summarise this client's history and the current state of the relationship — or
 async function invoiceChase(payload) {
   const { invoice = {}, client = {} } = payload
 
-  const systemPrompt = `${MERIDIAN_CONTEXT}
+  const systemPrompt = `${DRAFTING_CONTEXT}
 
-Draft a payment reminder email in George's voice, signed "George". Tone should scale with how overdue the invoice is — polite if just due, firmer if significantly overdue — but always professional. Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "draftResponse": string }`
+Draft a payment reminder in the house voice, signed "George". State the invoice number, amount and due date. If it is just due, a short courteous reminder. If it is well overdue, say plainly how many days and what happens next. Never threaten. Respond with ONLY a JSON object — no markdown fences — in exactly this shape: { "draftResponse": string }`
 
   const userMessage = `Invoice: ${JSON.stringify(invoice)}\nClient: ${JSON.stringify(client)}`
   const raw = await callClaude(systemPrompt, userMessage, 600)
   const result = safeParseJson(raw, { draftResponse: '' })
+  result.draftResponse = await enforceVoice(result.draftResponse)
   return { result, action: null, data: null }
 }
 
@@ -175,7 +203,7 @@ You are the command interpreter for Meridian Platform's AI Shell — a single co
 
 Decide exactly ONE action: ${SHELL_ACTIONS.join(', ')}.
 - update_client / update_order / update_supplier require a resolved id from the provided list — if you can't confidently match one, use "none" instead and ask for clarification.
-- send_email means drafting an email — you never send it yourself, only draft it for human approval.
+- send_email means drafting an email in the house voice (below), signed "George" — you never send it yourself, only draft it for human approval.
 - query means answering a question using the context you were given — put the actual answer in "response".
 - none covers conversational replies, clarifying questions, or anything you can't safely act on.
 
@@ -196,7 +224,9 @@ Respond with ONLY a JSON object — no markdown fences — in exactly this shape
 - send_email: { toEmail, toName, subject, draftResponse, clientId or null }
 - query / none: null
 
-Be conservative — if anything is ambiguous, prefer "none" and ask for clarification in "response" rather than guessing.`
+Be conservative — if anything is ambiguous, prefer "none" and ask for clarification in "response" rather than guessing.
+
+${MERIDIAN_VOICE}`
 
   const userMessage = `Instruction: ${instruction}\n\nExisting records:\n${JSON.stringify(context)}`
   const raw = await callClaude(systemPrompt, userMessage, 1024)
@@ -215,6 +245,7 @@ Be conservative — if anything is ambiguous, prefer "none" and ask for clarific
   // email_approvals (service-role only — the browser can't write to it directly) for
   // human review, rather than sending immediately from a freeform command.
   if (parsed.action === 'send_email' && parsed.data) {
+    parsed.data.draftResponse = await enforceVoice(parsed.data.draftResponse)
     const supabaseAdmin = getSupabaseAdmin()
     const { data: approval, error } = await supabaseAdmin
       .from('email_approvals')
