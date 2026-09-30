@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { ENGAGEMENT_TYPES, DEFAULT_ENGAGEMENT_TYPE, FILE_TIERS, stepsFor } from '../../lib/engagements.js'
+import { ENGAGEMENT_TYPES, LEGACY_ENGAGEMENT_TYPES, DEFAULT_ENGAGEMENT_TYPE, FILE_TIERS, stepsFor } from '../../lib/engagements.js'
 
 const ORIGINS = ['Guangzhou', 'Shenzhen', 'Yiwu', 'Foshan', 'Dongguan', 'Hangzhou', 'Shanghai', 'Other']
 const STATUSES = ['Sourcing', 'Sampling', 'Production', 'QC', 'Shipped', 'Delivered', 'Cancelled']
@@ -116,7 +116,7 @@ export default function NewOrderPanel({ open, onClose, onSave, initialData, clie
 
           <Field label="Engagement Type">
             <div className="flex flex-wrap gap-2">
-              {ENGAGEMENT_TYPES.map(t => (
+              {(LEGACY_ENGAGEMENT_TYPES.includes(form.engagementType) ? [...ENGAGEMENT_TYPES, form.engagementType] : ENGAGEMENT_TYPES).map(t => (
                 <button
                   key={t}
                   type="button"
@@ -135,8 +135,8 @@ export default function NewOrderPanel({ open, onClose, onSave, initialData, clie
               {FILE_TIERS[form.engagementType]
                 ? `USD ${FILE_TIERS[form.engagementType].fee.toLocaleString('en-US')} fixed fee, 50% on signature and 50% on delivery. ${FILE_TIERS[form.engagementType].blurb}.`
                 : form.engagementType === 'Full Mandate'
-                ? 'Commission on FOB value, USD 950 minimum. For orders of USD 15,000 FOB and above.'
-                : 'Legacy engagement type. New orders use a File tier or the Full Mandate.'}
+                ? 'Retired. The Full Mandate was withdrawn on 30 September 2026.'
+                : 'Retired engagement type. It stays valid on existing orders. New orders use the current catalogue.'}
             </p>
           </Field>
 
