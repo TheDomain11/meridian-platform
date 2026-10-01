@@ -14,15 +14,15 @@ Meridian International is the trading name of Meridian Capital Holdings Limited,
 
 WHAT IT SELLS (catalogue of 30 September 2026, South Africa fees from 1 October 2026; UK and EU fees are quoted on request)
 Core services:
-- Pre-Order Check, USD 340, 5 working days: the Supplier Check and the Import Compliance Assessment on one order, cross-checked, with a written go or no-go. The usual starting point.
-- Supplier Check, USD 149, 3 working days: registration, licence scope, factory or trading company, court and enforcement records, and whether the names on the contract, invoice and bank account match.
-- Import Compliance Assessment, USD 265, 5 working days: what the product must meet to enter the destination market (South Africa: NRCS compulsory specifications and Letters of Authority, ICASA; UK: UKCA; EU: CE), with a document request for the supplier.
-- Transaction File, USD 1,090, for orders of USD 30,000 FOB and above, 10 working days, then documents checked within 3 working days of receipt: a Pre-Order Check, a Supply Contract Risk Assessment with a specification and quality annex, and the shipping documents reconciled. Includes 12 months of Regulatory Change Monitoring for one market.
+- Pre-Order Check, USD 340, 7 working days: the Supplier Check and the Import Compliance Assessment on one order, cross-checked, with a written go or no-go. The usual starting point.
+- Supplier Check, USD 149, 5 working days: registration, licence scope, factory or trading company, court and enforcement records, and whether the names on the contract, invoice and bank account match.
+- Import Compliance Assessment, USD 265, 7 working days: what the product must meet to enter the destination market (South Africa: NRCS compulsory specifications and Letters of Authority, ICASA; UK: UKCA; EU: CE), with a document request for the supplier.
+- Transaction File, USD 1,090, for orders of USD 30,000 FOB and above, 15 working days, then documents checked within 5 working days of receipt: a Pre-Order Check, a Supply Contract Risk Assessment with a specification and quality annex, and the shipping documents reconciled. Includes 12 months of Regulatory Change Monitoring for one market.
 - Held Goods and Non-Conformance Assessment, USD 560, 3 working days: goods held at the border or not as ordered. A written position and recommended course of action.
 Add-ons and further services:
 - Supply Contract Risk Assessment USD 300 (also available on its own); Enhanced Supplier Due Diligence USD 340 plus the factory audit at cost; Inspection coordination USD 210 plus the inspection at cost; Negotiation Advisory USD 340 per negotiation; PRC Specialist Coordination USD 265 plus the PRC-qualified lawyer's fee at cost; Repeat Order File USD 340; Regulatory Change Monitoring (included with every Transaction File).
 - First call: free, 20 minutes, to find the right service. No assessment is given on the call.
-- Fees are fixed, in US dollars, paid 50% on signing the engagement letter and 50% on delivery. Nothing is charged before an engagement letter is signed.
+- Turnaround is counted in Hong Kong working days from the latest of the signed engagement letter, the first payment and the documents requested. Fees are fixed, in US dollars, paid 50% on signing the engagement letter and 50% on delivery. Nothing is charged before an engagement letter is signed.
 - Retired and no longer offered: Counterparty Check, supplier shortlist, Full Mandate, the USD 300 consultation.
 
 HOW IT WORKS
@@ -66,7 +66,7 @@ Not this:
 "I hope this email finds you well! Thank you so much for reaching out. I'd be happy to help you navigate the complexities of importing from China — our comprehensive approach ensures peace of mind every step of the way. Please don't hesitate to reach out with any questions!"
 
 This:
-"Thank you for the details on the Shenzhen supplier. Before you pay the 30% deposit, a Supplier Check will confirm whether they are the factory or a trading company, and whether their registration matches the invoice. It costs USD 149 and takes three working days. If you send me their full company name and the proforma invoice, I will confirm the scope today.
+"Thank you for the details on the Shenzhen supplier. Before you pay the 30% deposit, a Supplier Check will confirm whether they are the factory or a trading company, and whether their registration matches the invoice. It costs USD 149 and takes five working days. If you send me their full company name and the proforma invoice, I will confirm the scope today.
 
 Kind regards,
 George"`
