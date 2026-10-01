@@ -12,17 +12,17 @@
 
 // Offered when creating or editing an order, in this order.
 export const CURRENT_TIERS = {
-  'Pre-Order Check': { fee: 450, blurb: 'Supplier and product checked and cross-checked before a first deposit' },
-  'Supplier Check': { fee: 199, blurb: 'A named supplier verified, with a written go or no-go' },
-  'Import Compliance Assessment': { fee: 350, blurb: 'What the product must meet to enter the destination market' },
-  'Transaction File': { fee: 1450, blurb: 'Pre-Order Check, contract assessment and document reconciliation, for orders of USD 30,000 FOB and above' },
-  'Held Goods and Non-Conformance Assessment': { fee: 750, blurb: 'Goods held or not as ordered: a written position and next steps' },
-  'Supply Contract Risk Assessment': { fee: 400, blurb: 'Risk assessment of a supply contract or purchase order' },
-  'Enhanced Supplier Due Diligence': { fee: 450, blurb: 'Supplier Check plus sanctions, financial standing and a factory audit (audit fee at cost)' },
-  'Inspection coordination': { fee: 275, blurb: 'Independent pre-shipment inspection (inspection fee at cost)' },
-  'Negotiation Advisory': { fee: 450, blurb: 'Preparation and support for one supplier negotiation' },
-  'PRC Specialist Coordination': { fee: 350, blurb: 'A PRC-qualified lawyer briefed and managed (lawyer\'s fee at cost)' },
-  'Repeat Order File': { fee: 450, blurb: 'Further order with a supplier already checked' },
+  'Pre-Order Check': { fee: 340, blurb: 'Supplier and product checked and cross-checked before a first deposit' },
+  'Supplier Check': { fee: 149, blurb: 'A named supplier verified, with a written go or no-go' },
+  'Import Compliance Assessment': { fee: 265, blurb: 'What the product must meet to enter the destination market' },
+  'Transaction File': { fee: 1090, blurb: 'Pre-Order Check, contract assessment and document reconciliation, for orders of USD 30,000 FOB and above' },
+  'Held Goods and Non-Conformance Assessment': { fee: 560, blurb: 'Goods held or not as ordered: a written position and next steps' },
+  'Supply Contract Risk Assessment': { fee: 300, blurb: 'Risk assessment of a supply contract or purchase order' },
+  'Enhanced Supplier Due Diligence': { fee: 340, blurb: 'Supplier Check plus sanctions, financial standing and a factory audit (audit fee at cost)' },
+  'Inspection coordination': { fee: 210, blurb: 'Independent pre-shipment inspection (inspection fee at cost)' },
+  'Negotiation Advisory': { fee: 340, blurb: 'Preparation and support for one supplier negotiation' },
+  'PRC Specialist Coordination': { fee: 265, blurb: 'A PRC-qualified lawyer briefed and managed (lawyer\'s fee at cost)' },
+  'Repeat Order File': { fee: 340, blurb: 'Further order with a supplier already checked' },
 }
 
 // Retired from the catalogue. They stay valid in the database and keep working for
