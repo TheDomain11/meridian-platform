@@ -180,7 +180,7 @@ function buildHeader() {
       new TextRun({ text:"INTERNATIONAL", font:FONTS.SERIF, size:24, color:COLORS.GOLD, characterSpacing:90 }),
     ] }),
     new Paragraph({ spacing:{before:g(2),after:0}, children:[new TextRun({
-      text:"Meridian Capital Holdings Limited  ·  BR 76904892-001-08-25-5  ·  Hong Kong SAR  ·  enquiries@meridianinternational.io",
+      text:"Meridian Capital Holdings Limited  ·  BR 76904892  ·  Hong Kong SAR  ·  enquiries@meridianinternational.io",
       font:FONTS.SANS, size:13, color:COLORS.STONE })] }),
     rule(COLORS.GOLD, 4, 2, 0),
   ] });
