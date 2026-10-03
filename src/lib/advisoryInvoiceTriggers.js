@@ -6,7 +6,7 @@
 // invoice itself. The existing Draft -> review -> send-invoice-email.js flow is untouched.
 //
 // File tiers are fixed fees paid 50% on signature of the engagement letter and 50% on
-// delivery of the File (Pricing_Architecture_2026-09.md). The Full Mandate keeps its
+// delivery (Service Catalogue 2026-09-30). The Full Mandate keeps its
 // USD 950 deposit and commission balance. Legacy 'Standalone' orders get no prompts.
 
 import { FILE_TIERS, FULL_MANDATE, isFile } from './engagements.js'
@@ -35,7 +35,7 @@ function fileTriggers(tier) {
       unitPrice: half,
     },
     Delivered: {
-      description: `${tier}: 50% on delivery of the File`,
+      description: `${tier}: 50% on delivery of the assessment`,
       qty: 1,
       unitPrice: half,
     },

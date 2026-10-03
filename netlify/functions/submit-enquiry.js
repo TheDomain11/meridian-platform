@@ -1,4 +1,5 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
+const { renderEmail } = require('./lib/email-template.js')
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 if (!RESEND_API_KEY) throw new Error('Missing required environment variable: RESEND_API_KEY')
@@ -15,14 +16,14 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-async function sendResendEmail({ to, subject, text }) {
+async function sendResendEmail({ to, subject, text, html }) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, text }),
+    body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, text, ...(html ? { html } : {}) }),
   })
 
   if (!res.ok) {
@@ -191,10 +192,19 @@ exports.handler = async (event) => {
         text: bodyText,
       })
 
+      const reply = renderEmail({
+        greeting: `Dear ${data.name},`,
+        paragraphs: [
+          'I have your enquiry and will reply within one business day (China Standard Time, UTC+8).',
+          "I will tell you which service fits your order and what it costs. If you already have the supplier's full company name, the proforma invoice or the product specification, send them in reply and I will read them before we speak.",
+          'The first call is free and runs 20 minutes. Nothing else is charged until you sign an engagement letter.',
+        ],
+      })
       await sendResendEmail({
         to: data.email,
-        subject: 'Enquiry received — Meridian International',
-        text: `Dear ${data.name},\n\nThank you for your enquiry. I have received it and will reply within one business day (China Standard Time, UTC+8).\n\nMy reply will set out which Meridian File fits your order and its fixed fee. If you already have the supplier's full company name, a proforma invoice or a product specification, reply to this email with them and I will look at them before we speak.\n\nNothing is charged until you sign an engagement letter.\n\nKind regards,\nGeorge Skordi\nMeridian International`,
+        subject: 'Enquiry received, Meridian International',
+        text: reply.text,
+        html: reply.html,
       })
     } catch (emailErr) {
       console.error('[submit-enquiry] Resend send failed:', emailErr)
