@@ -14,11 +14,28 @@ const SANS = "Arial,Helvetica,sans-serif"
 const SIGNATURE = {
   name: 'George Skordi',
   role: 'Founder, Meridian International',
+  credentials: 'LLB, LLM (International Economic Law)',
   email: 'george@meridianinternational.io',
   phone: '+852 6297 1699',
   site: 'meridianinternational.io',
-  legal: 'Meridian Capital Holdings Limited, Hong Kong (BR 76904892)',
-  note: 'Meridian is not a law firm.',
+}
+
+const FOOTER = {
+  tagline: 'Ready for the border.',
+  enquiries: 'enquiries@meridianinternational.io',
+  whatsapp: '+852 6297 1699',
+  whatsappUrl: 'https://wa.me/85262971699',
+  site: 'https://meridianinternational.io',
+  links: [
+    ['Terms of Service', 'https://meridianinternational.io/terms.html'],
+    ['Privacy Policy', 'https://meridianinternational.io/privacy.html'],
+    ['Jurisdiction and regulatory notices', 'https://meridianinternational.io/jurisdiction.html'],
+  ],
+  company: 'Meridian Capital Holdings Limited, trading as Meridian International. Hong Kong Business Registration No. 76904892.',
+  // Same wording as the website footer and Terms. Keep in step with the site.
+  disclosure:
+    'Meridian International provides commercial and compliance analysis. It does not provide customs brokerage or tax advice. Meridian is not a law firm. George Skordi is not admitted to practise law in any jurisdiction. Meridian\u2019s assessments are regulatory and contractual analysis. Where a matter needs a lawyer\u2019s opinion, representation or formal legal documents, Meridian says so and refers the client to a qualified lawyer in the relevant jurisdiction.',
+  copyright: '\u00a9 2026 Meridian Capital Holdings Limited. MERIDIAN INTERNATIONAL\u2122 is an unregistered trade mark.',
 }
 
 function esc(s) {
@@ -33,12 +50,24 @@ function signatureText() {
   const s = SIGNATURE
   return [
     s.name,
+    s.credentials,
     s.role,
     `${s.email} | ${s.phone}`,
     s.site,
+  ].join('\n')
+}
+
+function footerText() {
+  const f = FOOTER
+  return [
+    '--',
+    `MERIDIAN INTERNATIONAL. ${f.tagline}`,
+    `${f.enquiries} | WhatsApp ${f.whatsapp} | ${f.site}`,
+    f.links.map(([l, u]) => `${l}: ${u}`).join('\n'),
     '',
-    s.legal,
-    s.note,
+    f.company,
+    f.disclosure,
+    f.copyright,
   ].join('\n')
 }
 
@@ -48,6 +77,7 @@ function signatureHtml() {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-top:32px;border-top:2px solid ${BRONZE};">
       <tr><td style="padding-top:14px;">
         <div style="font-family:${SERIF};font-size:19px;line-height:1.3;color:${INK};">${esc(s.name)}</div>
+        <div style="font-family:${SANS};font-size:13px;line-height:1.5;color:${INK};">${esc(s.credentials)}</div>
         <div style="font-family:${SANS};font-size:13px;line-height:1.5;color:${STONE};">${esc(s.role)}</div>
         <div style="font-family:${SANS};font-size:13px;line-height:1.7;color:${INK};margin-top:8px;">
           <a href="mailto:${esc(s.email)}" style="color:${INK};text-decoration:none;">${esc(s.email)}</a>
@@ -55,7 +85,31 @@ function signatureHtml() {
           <span style="color:${BRONZE};">&nbsp;|&nbsp;</span>
           <a href="https://${esc(s.site)}" style="color:${INK};text-decoration:none;">${esc(s.site)}</a>
         </div>
-        <div style="font-family:${SANS};font-size:11.5px;line-height:1.6;color:${STONE};margin-top:10px;">${esc(s.legal)}<br/>${esc(s.note)}</div>
+      </td></tr>
+    </table>`
+}
+
+function footerHtml() {
+  const f = FOOTER
+  const link = (t, u) => `<a href="${esc(u)}" style="color:${STONE};text-decoration:underline;">${esc(t)}</a>`
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:40px;background:#F2EFE8;border-top:3px solid ${BRONZE};">
+      <tr><td style="padding:24px 24px 8px 24px;">
+        <div style="font-family:${SERIF};font-size:18px;letter-spacing:0.18em;color:${INK};">MERIDIAN INTERNATIONAL</div>
+        <div style="font-family:${SERIF};font-size:15px;font-style:italic;color:${BRONZE};margin-top:2px;">${esc(f.tagline)}</div>
+      </td></tr>
+      <tr><td style="padding:12px 24px 0 24px;font-family:${SANS};font-size:12.5px;line-height:1.8;color:${INK};">
+        <a href="mailto:${esc(f.enquiries)}" style="color:${INK};text-decoration:none;">${esc(f.enquiries)}</a><br/>
+        ${link('WhatsApp ' + f.whatsapp, f.whatsappUrl)}<br/>
+        ${link('meridianinternational.io', f.site)}
+      </td></tr>
+      <tr><td style="padding:12px 24px 0 24px;font-family:${SANS};font-size:12px;line-height:1.8;color:${STONE};">
+        ${f.links.map(([t, u]) => link(t, u)).join('&nbsp;&nbsp;&middot;&nbsp;&nbsp;')}
+      </td></tr>
+      <tr><td style="padding:14px 24px 24px 24px;font-family:${SANS};font-size:11px;line-height:1.6;color:${STONE};">
+        <p style="margin:0 0 8px 0;">${esc(f.company)}</p>
+        <p style="margin:0 0 8px 0;">${esc(f.disclosure)}</p>
+        <p style="margin:0;">${esc(f.copyright)}</p>
       </td></tr>
     </table>`
 }
@@ -73,6 +127,7 @@ function renderEmail({ greeting, paragraphs = [], bodyHtml = '', closing = 'Kind
     ${bodyHtml}
     <p style="margin:24px 0 0 0;">${esc(closing)}</p>
     ${signatureHtml()}
+    ${footerHtml()}
   </div>
 </body></html>`
 
@@ -82,9 +137,10 @@ function renderEmail({ greeting, paragraphs = [], bodyHtml = '', closing = 'Kind
     ...paragraphs.map(plain),
     closing,
     signatureText(),
+    footerText(),
   ].filter((x) => x !== null).join('\n\n')
 
   return { html, text }
 }
 
-module.exports = { renderEmail, signatureHtml, signatureText, SIGNATURE }
+module.exports = { renderEmail, signatureHtml, signatureText, footerHtml, footerText, SIGNATURE, FOOTER }
