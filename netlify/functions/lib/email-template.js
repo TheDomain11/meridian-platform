@@ -14,7 +14,7 @@ const SANS = "Arial,Helvetica,sans-serif"
 const SIGNATURE = {
   name: 'George Skordi',
   role: 'Founder, Meridian International',
-  credentials: 'LLB, LLM (International Economic Law)',
+  credentials: 'LLB, LLM',
   email: 'george@meridianinternational.io',
   phone: '+852 6297 1699',
   site: 'meridianinternational.io',
