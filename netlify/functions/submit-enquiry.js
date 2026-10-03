@@ -196,7 +196,7 @@ exports.handler = async (event) => {
         greeting: `Dear ${data.name},`,
         paragraphs: [
           'I have your enquiry and will reply within one business day (China Standard Time, UTC+8).',
-          "My reply will say which Meridian service fits your order and what it costs. If you already have the supplier's full company name, the proforma invoice or the product specification, send them in reply and I will read them before we speak.",
+          "I will tell you which service fits your order and what it costs. If you already have the supplier's full company name, the proforma invoice or the product specification, send them in reply and I will read them before we speak.",
           'The first call is free and runs 20 minutes. Nothing else is charged until you sign an engagement letter.',
         ],
       })
