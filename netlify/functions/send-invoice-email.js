@@ -1,4 +1,5 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
+const { renderEmail, esc } = require('./lib/email-template.js')
 
 // Drop the real key into the Netlify site's environment variables as RESEND_API_KEY.
 // See README section "Resend / Stripe setup" for exact steps.
@@ -24,28 +25,22 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields: invoiceId, to, pdfBase64, pdfFilename' }) }
   }
 
-  const paymentBlock = paymentLink
-    ? `<p style="margin:28px 0;">
-         <a href="${paymentLink}" style="background:#0C2340;color:#ffffff;padding:12px 24px;text-decoration:none;font-family:Georgia,serif;display:inline-block;">
-           Pay Invoice ${displayNo}
-         </a>
-       </p>`
-    : ''
+  const paragraphs = [
+    {
+      html: `Please find attached invoice <strong>${esc(displayNo)}</strong> for <strong>${esc(currency)} ${esc(total)}</strong>, due ${esc(dueDate)}.`,
+      text: `Please find attached invoice ${displayNo} for ${currency} ${total}, due ${dueDate}.`,
+    },
+  ]
+  if (paymentLink) {
+    paragraphs.push({
+      html: `<a href="${esc(paymentLink)}" style="background:#86632F;color:#ffffff;padding:12px 24px;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:15px;display:inline-block;">Pay invoice ${esc(displayNo)}</a>`,
+      text: `Pay online: ${paymentLink}`,
+    })
+  }
+  paragraphs.push('If you have any questions about this invoice, reply to this email.', 'Thank you for your business.')
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;color:#0C2340;max-width:560px;margin:0 auto;line-height:1.6;">
-      <p>Dear ${clientName || 'Client'},</p>
-      <p>Please find attached invoice <strong>${displayNo}</strong> for <strong>${currency} ${total}</strong>, due ${dueDate}.</p>
-      ${paymentBlock}
-      <p>If you have any questions about this invoice, simply reply to this email.</p>
-      <p>Thank you for your business.</p>
-      <p style="margin-top:32px;color:#3D4F5F;">
-        George<br/>
-        Meridian International<br/>
-        george@meridianinternational.io | +852 6297 1699
-      </p>
-    </div>
-  `
+  // Same closing, signature and footer as every other client email.
+  const { html, text } = renderEmail({ greeting: `Dear ${clientName || 'Client'},`, paragraphs })
 
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -58,6 +53,7 @@ exports.handler = async (event) => {
         from: FROM_ADDRESS,
         to: [to],
         subject: `Invoice ${displayNo} — Meridian International`,
+        text,
         html,
         attachments: [{ filename: pdfFilename, content: pdfBase64 }],
       }),

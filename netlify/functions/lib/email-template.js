@@ -114,6 +114,21 @@ function footerHtml() {
     </table>`
 }
 
+// Turns a typed reply into paragraphs for renderEmail. A pasted sign-off ("Kind regards,"
+// and everything after it) is dropped, because the template adds its own closing,
+// signature and footer to every message. Lines starting "- " become bullets.
+function textToParagraphs(text) {
+  const body = String(text ?? '')
+    .replace(/\r\n/g, '\n')
+    .split(/\n[ \t]*(?:Kind regards|Best regards|Regards|Yours sincerely)[,.]?[ \t]*(?:\n|$)/i)[0]
+    .trim()
+  if (!body) return []
+  return body.split(/\n{2,}/).map((block) => {
+    const lines = block.split('\n').map((l) => l.replace(/^\s*-\s+/, '\u2022 '))
+    return { html: lines.map(esc).join('<br/>'), text: lines.join('\n') }
+  })
+}
+
 // paragraphs: array of strings (plain text) or { html } for pre-built inline markup.
 // Pass `bodyHtml` for fully custom content (for example a payment button).
 function renderEmail({ greeting, paragraphs = [], bodyHtml = '', closing = 'Kind regards,' }) {
@@ -131,7 +146,10 @@ function renderEmail({ greeting, paragraphs = [], bodyHtml = '', closing = 'Kind
   </div>
 </body></html>`
 
-  const plain = (t) => (typeof t === 'string' ? t : String(t.html).replace(/<[^>]+>/g, ''))
+  const plain = (t) =>
+    typeof t === 'string'
+      ? t
+      : t.text ?? String(t.html).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '')
   const text = [
     greeting ? plain(greeting) : null,
     ...paragraphs.map(plain),
@@ -143,4 +161,4 @@ function renderEmail({ greeting, paragraphs = [], bodyHtml = '', closing = 'Kind
   return { html, text }
 }
 
-module.exports = { renderEmail, signatureHtml, signatureText, footerHtml, footerText, SIGNATURE, FOOTER }
+module.exports = { renderEmail, textToParagraphs, esc, signatureHtml, signatureText, footerHtml, footerText, SIGNATURE, FOOTER }

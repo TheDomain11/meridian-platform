@@ -1,4 +1,5 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
+const { renderEmail, textToParagraphs } = require('./lib/email-template.js')
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 if (!RESEND_API_KEY) throw new Error('Missing required environment variable: RESEND_API_KEY')
@@ -31,6 +32,13 @@ exports.handler = async (event) => {
     if (fetchError) throw fetchError
 
     const responseText = finalResponseText?.trim() || approval.draft_response
+    if (!responseText || !responseText.trim()) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'The reply is empty. Use Edit & Approve and write the reply first.' }) }
+    }
+
+    // Every message carries the same closing, signature and footer (with the disclosure),
+    // so the typed reply is body text only.
+    const { html, text } = renderEmail({ paragraphs: textToParagraphs(responseText) })
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -42,7 +50,8 @@ exports.handler = async (event) => {
         from: 'George <george@meridianinternational.io>',
         to: [approval.from_email],
         subject: approval.subject ? `Re: ${approval.subject}` : 'Re: your enquiry',
-        text: responseText,
+        text,
+        html,
       }),
     })
 

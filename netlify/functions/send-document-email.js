@@ -1,4 +1,5 @@
 const { getSupabaseAdmin } = require('./_supabaseAdmin.js')
+const { renderEmail, esc } = require('./lib/email-template.js')
 
 // Drop the real key into the Netlify site's environment variables as RESEND_API_KEY.
 // See README section "Resend / Stripe setup" for exact steps.
@@ -59,18 +60,17 @@ exports.handler = async (event) => {
 
     const orderRef = order.reference || order.order_id
 
-    const html = `
-      <div style="font-family:Arial,sans-serif;color:#0C2340;max-width:560px;margin:0 auto;line-height:1.6;">
-        <p>Dear ${client.contact || client.company || 'Client'},</p>
-        <p>Please find attached the <strong>${doc.doc_type}</strong> for order <strong>${orderRef}</strong>.</p>
-        <p>If you have any questions, simply reply to this email.</p>
-        <p style="margin-top:32px;color:#3D4F5F;">
-          George<br/>
-          Meridian International<br/>
-          george@meridianinternational.io | +852 6297 1699
-        </p>
-      </div>
-    `
+    // Same closing, signature and footer as every other client email.
+    const { html, text } = renderEmail({
+      greeting: `Dear ${client.contact || client.company || 'Client'},`,
+      paragraphs: [
+        {
+          html: `Please find attached the <strong>${esc(doc.doc_type)}</strong> for order <strong>${esc(orderRef)}</strong>.`,
+          text: `Please find attached the ${doc.doc_type} for order ${orderRef}.`,
+        },
+        'If you have any questions, reply to this email.',
+      ],
+    })
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -82,6 +82,7 @@ exports.handler = async (event) => {
         from: FROM_ADDRESS,
         to: [client.email],
         subject: `${doc.doc_type} — ${orderRef} — Meridian International`,
+        text,
         html,
         attachments: [{ filename: doc.filename, content: fileBase64 }],
       }),
